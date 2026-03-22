@@ -373,7 +373,8 @@ def _enable_agent_overrides(client, agent_id: str):
     if resp.ok:
         print(f"    [agent] Overrides enabled for {agent_id}")
     else:
-        print(f"    [agent] WARNING: Failed to enable overrides for {agent_id}: {resp.status_code} {resp.text}")
+        print(f"    [agent] CRITICAL: Failed to enable overrides for {agent_id}: {resp.status_code} {resp.text}")
+        print(f"    [agent] CRITICAL: Dial-in will NOT work for this agent without overrides!")
 
 
 def _create_agent(client, style_key: str) -> str:
@@ -491,6 +492,8 @@ def ensure_agents() -> dict:
                 print(f"  [ensure] Added {len(new_tool_ids)} tools to {style_key}")
             else:
                 print(f"  [ensure] Agent {style_key} — {len(tool_ids)} tools OK")
+            # Ensure overrides are enabled (idempotent — re-enabling is a no-op)
+            _enable_agent_overrides(client, agent_id)
         except Exception as e:
             print(f"  [ensure] WARNING checking agent {style_key}: {e}")
 
@@ -509,95 +512,6 @@ def get_agent_id(style_key: str) -> str | None:
     agents = ensure_agents()
     return agents.get(style_key)
 
-
-def build_tool_definitions(base_url: str) -> list:
-    """Build webhook tool definitions for the agent, pointing to Flask endpoints.
-
-    These are used when creating new agents programmatically via the SDK.
-    """
-    from elevenlabs.types import (
-        PromptAgentApiModelInputToolsItem_Webhook,
-        WebhookToolApiSchemaConfigInput,
-    )
-
-    secret = os.environ.get("AGENT_WEBHOOK_SECRET", "")
-
-    def _make_tool(name, description, properties, required):
-        return PromptAgentApiModelInputToolsItem_Webhook(
-            type="webhook",
-            name=name,
-            description=description,
-            api_schema=WebhookToolApiSchemaConfigInput(
-                url=f"{base_url}/api/agent/tools/{name}",
-                method="POST",
-                request_headers={
-                    "X-Agent-Secret": secret,
-                } if secret else {},
-                request_body_schema={
-                    "type": "object",
-                    "properties": properties,
-                    "required": required,
-                },
-            ),
-        )
-
-    return [
-        _make_tool(
-            "search_news",
-            "Search for recent news articles on a topic. Use this to find current news stories.",
-            {
-                "query": {
-                    "type": "string",
-                    "description": "Search query for news articles",
-                },
-                "region": {
-                    "type": "string",
-                    "description": "Optional region filter (e.g., 'India', 'UK', 'US', 'Brazil')",
-                },
-            },
-            ["query"],
-        ),
-        _make_tool(
-            "fact_check",
-            "Verify a news claim by searching for fact-checks and corroborating sources. "
-            "Use this when a user mentions news that needs verification.",
-            {
-                "claim": {
-                    "type": "string",
-                    "description": "The news claim to verify",
-                },
-                "context": {
-                    "type": "string",
-                    "description": "Optional additional context about the claim",
-                },
-            },
-            ["claim"],
-        ),
-        _make_tool(
-            "read_article",
-            "Read the full content of a news article given its URL. "
-            "Use this to get detailed information from a specific source.",
-            {
-                "url": {
-                    "type": "string",
-                    "description": "The URL of the article to read",
-                },
-            },
-            ["url"],
-        ),
-        _make_tool(
-            "search_topic",
-            "Search the web for information on any topic. "
-            "Use this for general knowledge queries, advice questions, or background research.",
-            {
-                "query": {
-                    "type": "string",
-                    "description": "Search query",
-                },
-            },
-            ["query"],
-        ),
-    ]
 
 
 
@@ -639,93 +553,6 @@ ANSWER STYLE:
 TODAY'S BROADCAST CONTEXT:
 {{broadcast_context}}
 """
-
-
-def _build_output_tools(base_url: str) -> list:
-    """Build webhook tool definitions using Output types (for agent update)."""
-    from elevenlabs.types import (
-        PromptAgentApiModelOutputToolsItem_Webhook,
-        WebhookToolApiSchemaConfigOutput,
-    )
-
-    secret = os.environ.get("AGENT_WEBHOOK_SECRET", "")
-
-    def _make_tool(name, description, properties, required):
-        return PromptAgentApiModelOutputToolsItem_Webhook(
-            type="webhook",
-            name=name,
-            description=description,
-            api_schema=WebhookToolApiSchemaConfigOutput(
-                url=f"{base_url}/api/agent/tools/{name}",
-                method="POST",
-                request_headers={
-                    "X-Agent-Secret": secret,
-                } if secret else {},
-                request_body_schema={
-                    "type": "object",
-                    "properties": properties,
-                    "required": required,
-                },
-            ),
-        )
-
-    return [
-        _make_tool(
-            "search_news",
-            "Search for recent news articles on a topic. Use this to find current news stories.",
-            {
-                "query": {
-                    "type": "string",
-                    "description": "Search query for news articles",
-                },
-                "region": {
-                    "type": "string",
-                    "description": "Optional region filter (e.g., 'India', 'UK', 'US', 'Brazil')",
-                },
-            },
-            ["query"],
-        ),
-        _make_tool(
-            "fact_check",
-            "Verify a news claim by searching for fact-checks and corroborating sources. "
-            "Use this when a user mentions news that needs verification.",
-            {
-                "claim": {
-                    "type": "string",
-                    "description": "The news claim to verify",
-                },
-                "context": {
-                    "type": "string",
-                    "description": "Optional additional context about the claim",
-                },
-            },
-            ["claim"],
-        ),
-        _make_tool(
-            "read_article",
-            "Read the full content of a news article given its URL. "
-            "Use this to get detailed information from a specific source.",
-            {
-                "url": {
-                    "type": "string",
-                    "description": "The URL of the article to read",
-                },
-            },
-            ["url"],
-        ),
-        _make_tool(
-            "search_topic",
-            "Search the web for information on any topic. "
-            "Use this for general knowledge queries, advice questions, or background research.",
-            {
-                "query": {
-                    "type": "string",
-                    "description": "Search query",
-                },
-            },
-            ["query"],
-        ),
-    ]
 
 
 def configure_agent_webhooks(base_url: str, agent_id: str = ""):
@@ -896,25 +723,25 @@ def show_agent_info():
         print(f"Agent: {agent.name}")
         print(f"ID: {agent.agent_id}")
 
-    cc = agent.conversation_config
-    if cc and cc.agent:
-        a = cc.agent
-        print(f"\nLanguage: {a.language}")
-        print(f"First message: {a.first_message}")
-        if a.prompt:
-            print(f"LLM: {a.prompt.llm}")
-            prompt_preview = (a.prompt.prompt or "")[:200]
-            print(f"Prompt: {prompt_preview}...")
-            tools = a.prompt.tools or []
-            print(f"\nTools ({len(tools)}):")
-            for t in tools:
-                name = getattr(t, "name", "unknown")
-                ttype = getattr(t, "type", "unknown")
-                print(f"  - {name} ({ttype})")
+        cc = agent.conversation_config
+        if cc and cc.agent:
+            a = cc.agent
+            print(f"\nLanguage: {a.language}")
+            print(f"First message: {a.first_message}")
+            if a.prompt:
+                print(f"LLM: {a.prompt.llm}")
+                prompt_preview = (a.prompt.prompt or "")[:200]
+                print(f"Prompt: {prompt_preview}...")
+                tools = a.prompt.tools or []
+                print(f"\nTools ({len(tools)}):")
+                for t in tools:
+                    name = getattr(t, "name", "unknown")
+                    ttype = getattr(t, "type", "unknown")
+                    print(f"  - {name} ({ttype})")
 
-    if cc and cc.tts:
-        print(f"\nTTS voice: {cc.tts.voice_id}")
-        print(f"TTS model: {cc.tts.model_id}")
+        if cc and cc.tts:
+            print(f"\nTTS voice: {cc.tts.voice_id}")
+            print(f"TTS model: {cc.tts.model_id}")
 
 
 # ---------------------------------------------------------------------------

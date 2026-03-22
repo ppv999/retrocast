@@ -12,7 +12,7 @@ from ipaddress import ip_address
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
 
 load_dotenv()
 
@@ -34,7 +34,7 @@ if _ON_REPLIT:
     _store = _ObjClient(bucket_id=os.environ.get("DEFAULT_OBJECT_STORAGE_BUCKET_ID"))
 
 # Local fallback: keys are "audio/<rest>", stored under <project>/audio/<rest>
-_LOCAL_AUDIO_DIR = os.path.join(BASE_DIR, "audio")
+_LOCAL_AUDIO_DIR = os.path.join(BASE_DIR, "web", "audio")
 
 
 def _key_to_local_path(key: str) -> str:
@@ -279,11 +279,16 @@ def serve_audio(filepath):
     else:
         return jsonify({"error": "Not found"}), 404
 
+    # Path traversal guard (local filesystem mode)
+    if not _ON_REPLIT:
+        resolved = os.path.realpath(_key_to_local_path(f"audio/{filepath}"))
+        if not resolved.startswith(os.path.realpath(_LOCAL_AUDIO_DIR)):
+            return jsonify({"error": "Not found"}), 404
+
     data = _storage_get(f"audio/{filepath}")
     if data is None:
         return jsonify({"error": "Not found"}), 404
 
-    from flask import Response
     return Response(data, mimetype=mime)
 
 
@@ -345,7 +350,8 @@ AGENT_WEBHOOK_SECRET = os.environ.get("AGENT_WEBHOOK_SECRET", "")
 def _validate_webhook_secret():
     """Validate the X-Agent-Secret header on webhook requests."""
     if not AGENT_WEBHOOK_SECRET:
-        return True  # No secret configured, allow all (development mode)
+        print("[webhook] REJECTED — AGENT_WEBHOOK_SECRET not configured")
+        return False
     header = request.headers.get("X-Agent-Secret", "")
     valid = hmac.compare_digest(header, AGENT_WEBHOOK_SECRET)
     if not valid:
@@ -454,7 +460,9 @@ def tool_read_article():
             return jsonify({"error": "Internal URLs are not allowed"}), 400
     except ValueError:
         # Not a raw IP — check for localhost aliases
-        if hostname in ("localhost", "metadata.google.internal"):
+        blocked_hosts = {"localhost", "metadata.google.internal", "169.254.169.254",
+                         "metadata.google.com", "0.0.0.0", "127.0.0.1", "[::1]"}
+        if hostname in blocked_hosts or hostname.endswith(".internal"):
             return jsonify({"error": "Internal URLs are not allowed"}), 400
 
     try:
