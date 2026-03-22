@@ -245,8 +245,8 @@ def _create_agent(client, style_key: str) -> str:
     from elevenlabs.types import (
         AgentConfig,
         ConversationalConfig,
-        PromptAgentApiModelInput,
-        TtsConversationalConfigInput,
+        PromptAgentApiModelOutput,
+        TtsConversationalConfigOutput,
     )
 
     style = STYLES[style_key]
@@ -257,14 +257,14 @@ def _create_agent(client, style_key: str) -> str:
         name=f"{AGENT_NAME_PREFIX}{style_key}",
         conversation_config=ConversationalConfig(
             agent=AgentConfig(
-                prompt=PromptAgentApiModelInput(
+                prompt=PromptAgentApiModelOutput(
                     prompt=prompt,
                     llm="gpt-4o",
                 ),
                 first_message=char["first_message"],
                 language=char["language"],
             ),
-            tts=TtsConversationalConfigInput(
+            tts=TtsConversationalConfigOutput(
                 voice_id=style["default_voice"],
             ),
         ),
