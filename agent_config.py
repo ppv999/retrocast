@@ -143,6 +143,11 @@ def build_agent_prompt(style_key: str, broadcast_context: str = "") -> str:
 
     tool_filler = char.get("tool_filler", "One moment...")
 
+    # Truncate broadcast context to keep the override payload within limits
+    if len(broadcast_context) > 2000:
+        broadcast_context = broadcast_context[:2000] + "\n[truncated]"
+    broadcast_context_section = broadcast_context or "No broadcast context available for today."
+
     prompt = f"""{char["character"]}
 
 You are the anchor of RetroCast, a retro news broadcast. After delivering today's news,
@@ -191,7 +196,7 @@ If the user's question naturally connects to a useful resource or tool, you may 
 a brief, neutral mention (1 line max). Do NOT sound like an advertisement.
 
 TODAY'S BROADCAST CONTEXT:
-{{{{broadcast_context}}}}
+{broadcast_context_section}
 """
     return prompt
 
@@ -201,15 +206,12 @@ def get_style_overrides(style_key: str, broadcast_context: str = "") -> dict:
 
     These overrides are passed to the ElevenLabs Conversation SDK's startSession()
     to dynamically change voice, prompt, language, and first message per style.
-
-    The prompt override is kept short (character + instructions only).
-    Broadcast context is passed as a dynamic variable to avoid oversized payloads.
+    Broadcast context is embedded directly in the prompt override.
     """
     style = STYLES[style_key]
     char = STYLE_CHARACTERS[style_key]
 
-    # Build prompt WITHOUT broadcast context (keep it short for overrides)
-    prompt = build_agent_prompt(style_key, broadcast_context="")
+    prompt = build_agent_prompt(style_key, broadcast_context=broadcast_context)
 
     result = {
         "agent": {
@@ -228,17 +230,8 @@ def get_style_overrides(style_key: str, broadcast_context: str = "") -> dict:
 
 
 def get_dynamic_variables(style_key: str, broadcast_context: str = "") -> dict:
-    """Return dynamic variables for the conversation session.
-
-    Broadcast context (today's script + articles) is passed here
-    to keep the overrides payload small.
-    """
-    # Truncate broadcast context to avoid oversized payloads
-    if len(broadcast_context) > 2000:
-        broadcast_context = broadcast_context[:2000] + "\n[truncated]"
-
+    """Return dynamic variables for the conversation session (metadata only)."""
     return {
-        "broadcast_context": broadcast_context or "No broadcast context available for today.",
         "style": STYLES[style_key]["name"],
     }
 
