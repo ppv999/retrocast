@@ -1105,13 +1105,21 @@
     async function loadElevenLabsSDK() {
       if (ElevenLabsConversation) return ElevenLabsConversation;
       try {
-        const mod = await import('https://cdn.jsdelivr.net/npm/@11labs/client@latest/+esm');
+        const mod = await import('https://cdn.jsdelivr.net/npm/@11labs/client/+esm');
         ElevenLabsConversation = mod.Conversation;
-        console.log('ElevenLabs Conversation SDK loaded');
+        console.log('ElevenLabs Conversation SDK loaded (latest)');
         return ElevenLabsConversation;
-      } catch (e) {
-        console.warn('ElevenLabs Conversation SDK not available:', e);
-        return null;
+      } catch (e1) {
+        // Fallback to a known working pinned version if "latest" fails to resolve
+        try {
+          const mod = await import('https://cdn.jsdelivr.net/npm/@11labs/client@0.18.1/+esm');
+          ElevenLabsConversation = mod.Conversation;
+          console.log('ElevenLabs Conversation SDK loaded (fallback v0.18.1)');
+          return ElevenLabsConversation;
+        } catch (e2) {
+          console.warn('ElevenLabs Conversation SDK not available:', e2);
+          return null;
+        }
       }
     }
     // Pre-load the SDK
@@ -1671,35 +1679,55 @@
         const data = await res.json();
         console.log('Agent start response:', data);
 
+        // Normalize snake_case override keys to camelCase for the JS SDK
+        function snakeToCamel(obj) {
+          if (obj === null || typeof obj !== 'object') return obj;
+          if (Array.isArray(obj)) return obj.map(snakeToCamel);
+          const out = {};
+          for (const [k, v] of Object.entries(obj)) {
+            const camel = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+            out[camel] = snakeToCamel(v);
+          }
+          return out;
+        }
+        const overrides = data.overrides ? snakeToCamel(data.overrides) : undefined;
+
         // Start ElevenLabs conversation session with per-style overrides
         activeConversation = await Conversation.startSession({
           signedUrl: data.signed_url,
-          overrides: data.overrides,
+          overrides: overrides,
           dynamicVariables: data.dynamic_variables,
           onConnect: () => {
             console.log('Conversation connected');
             setConvStatus('Listening...', false);
           },
           onDisconnect: (details) => {
-            console.log('Conversation disconnected:', details);
-            // Surface quota/credit exhaustion to the user
-            const reason = details?.reason || '';
+            const reason = details?.reason || 'unknown';
             const code = details?.code || '';
+            console.log('Conversation disconnected:', { reason, code, details });
+
+            // Surface quota/credit exhaustion to the user
             const isQuota = /quota|credit|limit|insufficient|402/i.test(
               `${reason} ${code} ${JSON.stringify(details)}`
             );
             if (isQuota) {
               setConvStatus('Service temporarily unavailable (quota)', false);
               showQuotaBanner();
+            } else {
+              setConvStatus('Disconnected: ' + reason, false);
             }
-            // Only end if we didn't already clean up
-            if (activeConversation) {
-              activeConversation = null;
-              stopWaveform();
-              conversationLive.classList.remove('visible');
-              askAnchorBtn.style.display = 'inline-flex';
-              featuredPlayBtn.style.display = 'flex';
-            }
+
+            // Delay UI cleanup so user can read the status
+            setTimeout(() => {
+              if (!activeConversation) {
+                stopWaveform();
+                conversationLive.classList.remove('visible');
+                askAnchorBtn.style.display = 'inline-flex';
+                featuredPlayBtn.style.display = 'flex';
+              }
+            }, 4000);
+
+            activeConversation = null;
           },
           onModeChange: (mode) => {
             console.log('Mode change:', mode);
@@ -1714,9 +1742,11 @@
             console.log('Message:', msg);
           },
           onError: (error) => {
-            console.error('Conversation error:', error);
-            setConvStatus('Connection lost', false);
-            setTimeout(endConversation, 2000);
+            const errMsg = error?.message || error?.toString?.() || 'Unknown error';
+            console.error('Conversation error:', errMsg, error);
+            setConvStatus('Error: ' + errMsg, false);
+            // Give user time to read the error before closing
+            setTimeout(endConversation, 5000);
           },
         });
         console.log('Conversation session started:', activeConversation);
@@ -1730,7 +1760,8 @@
           setConvStatus('Connection failed: ' + (e.message || 'Unknown error'), false);
         }
 
-        setTimeout(endConversation, 3000);
+        // Give user time to read the error before closing
+        setTimeout(endConversation, 5000);
       }
     }
 

@@ -543,7 +543,7 @@ def api_agent_start():
         # Pre-check ElevenLabs subscription quota
         client = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
         try:
-            sub = client.user.get_subscription()
+            sub = client.user.subscription.get()
             remaining = sub.character_limit - sub.character_count
             print(f"[agent] ElevenLabs quota: {sub.character_count}/{sub.character_limit} used ({remaining} remaining)")
             if remaining <= 0:
