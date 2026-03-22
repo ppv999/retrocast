@@ -137,17 +137,20 @@ STYLE_CHARACTERS = {
 }
 
 
-def build_agent_prompt(style_key: str, broadcast_context: str = "") -> str:
-    """Construct the conversational system prompt for a RetroCast anchor agent."""
+def build_agent_prompt(style_key: str) -> str:
+    """Construct the conversational system prompt for a RetroCast anchor agent.
+
+    IMPORTANT: Broadcast context is NOT embedded here — it is passed separately
+    via ElevenLabs dynamic variables (``{{broadcast_context}}``). This keeps the
+    prompt override payload small enough for the WebSocket handshake.  If the
+    prompt exceeds ~2000 chars the ElevenLabs SDK silently drops the connection.
+    """
     char = STYLE_CHARACTERS[style_key]
 
     tool_filler = char.get("tool_filler", "One moment...")
 
-    # Truncate broadcast context to keep the override payload within limits
-    if len(broadcast_context) > 2000:
-        broadcast_context = broadcast_context[:2000] + "\n[truncated]"
-    broadcast_context_section = broadcast_context or "No broadcast context available for today."
-
+    # NOTE: The double-braces {{{{…}}}} produce literal {{…}} in the output,
+    # which ElevenLabs interprets as a dynamic-variable placeholder at runtime.
     prompt = f"""{char["character"]}
 
 You are the anchor of RetroCast, a retro news broadcast. After delivering today's news,
@@ -196,22 +199,34 @@ If the user's question naturally connects to a useful resource or tool, you may 
 a brief, neutral mention (1 line max). Do NOT sound like an advertisement.
 
 TODAY'S BROADCAST CONTEXT:
-{broadcast_context_section}
+{{{{broadcast_context}}}}
 """
     return prompt
 
 
-def get_style_overrides(style_key: str, broadcast_context: str = "") -> dict:
+def get_style_overrides(style_key: str) -> dict:
     """Return per-style overrides to customize the base agent for each broadcast style.
 
     These overrides are passed to the ElevenLabs Conversation SDK's startSession()
     to dynamically change voice, prompt, language, and first message per style.
-    Broadcast context is embedded directly in the prompt override.
+
+    IMPORTANT: Broadcast context is NOT included here — it travels via dynamic
+    variables so that this override payload stays small.  The ElevenLabs SDK
+    silently drops the WebSocket if the override is too large.
     """
     style = STYLES[style_key]
     char = STYLE_CHARACTERS[style_key]
 
-    prompt = build_agent_prompt(style_key, broadcast_context=broadcast_context)
+    prompt = build_agent_prompt(style_key)
+
+    # Safety guard: warn loudly if the prompt is getting dangerously large.
+    # ElevenLabs starts rejecting around 2500-3000 chars in the override.
+    prompt_len = len(prompt)
+    if prompt_len > 2000:
+        print(f"[agent_config] WARNING: prompt override for {style_key} is {prompt_len} chars "
+              f"(>2000) — risk of WebSocket rejection by ElevenLabs!")
+    else:
+        print(f"[agent_config] Prompt override for {style_key}: {prompt_len} chars (OK)")
 
     result = {
         "agent": {
@@ -229,9 +244,22 @@ def get_style_overrides(style_key: str, broadcast_context: str = "") -> dict:
     return result
 
 
+_MAX_BROADCAST_CONTEXT_CHARS = 2000
+
+
 def get_dynamic_variables(style_key: str, broadcast_context: str = "") -> dict:
-    """Return dynamic variables for the conversation session (metadata only)."""
+    """Return dynamic variables for the conversation session.
+
+    ``broadcast_context`` is the main vehicle for injecting today's news into the
+    agent prompt — it is substituted into the ``{{broadcast_context}}`` placeholder
+    at runtime by ElevenLabs, keeping the prompt override itself small.
+    """
+    if len(broadcast_context) > _MAX_BROADCAST_CONTEXT_CHARS:
+        broadcast_context = broadcast_context[:_MAX_BROADCAST_CONTEXT_CHARS] + "\n[truncated]"
+        print(f"[agent_config] broadcast_context truncated to {_MAX_BROADCAST_CONTEXT_CHARS} chars for {style_key}")
+
     return {
+        "broadcast_context": broadcast_context or "No broadcast context available for today.",
         "style": STYLES[style_key]["name"],
     }
 

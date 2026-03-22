@@ -583,8 +583,14 @@ def api_agent_start():
         )
 
         # Compute per-style overrides and dynamic variables
-        overrides = get_style_overrides(style_key, broadcast_context)
+        overrides = get_style_overrides(style_key)
         dynamic_variables = get_dynamic_variables(style_key, broadcast_context)
+
+        # Defensive: log the override payload size so we can spot regressions
+        _override_size = len(json.dumps(overrides))
+        print(f"[agent] Override payload size: {_override_size} chars, "
+              f"dynamic_variables keys: {list(dynamic_variables.keys())}, "
+              f"broadcast_context length: {len(broadcast_context)} chars")
 
         print(f"[agent] Session ready — signed URL obtained for {style_key}")
         return jsonify({
