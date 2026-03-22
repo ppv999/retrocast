@@ -198,11 +198,13 @@ def get_style_overrides(style_key: str) -> dict:
     else:
         print(f"[agent_config] Prompt override for {style_key}: {prompt_len} chars (OK)")
 
+    # The ElevenLabs JS SDK startSession() expects a flat override format:
+    #   agent.prompt  → string (NOT the nested {prompt: "..."} used by the REST API)
+    #   agent.first_message → string
+    #   tts.voice_id → string
     result = {
         "agent": {
-            "prompt": {
-                "prompt": prompt,
-            },
+            "prompt": prompt,
             "first_message": char["first_message"],
             "language": char["language"],
         },
