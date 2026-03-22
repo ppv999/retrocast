@@ -1,0 +1,32 @@
+name: Feature Request
+description: Suggest an idea for RetroCast
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like?
+      description: Describe the feature you'd like to see.
+      placeholder: "It would be great to have a Japanese NHK-style broadcast from the 1980s..."
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why?
+      description: What problem does this solve, or what experience does it enable?
+    validations:
+      required: false
+  - type: dropdown
+    id: type
+    attributes:
+      label: What kind of feature is this?
+      options:
+        - New broadcast style / country
+        - UI / frontend improvement
+        - New pipeline capability
+        - Ask the Anchor improvement
+        - Deployment / infrastructure
+        - Other
+    validations:
+      required: true

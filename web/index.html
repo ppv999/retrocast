@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <title>RetroCast - News Without the Noise</title>
+  <meta name="description" content="Modern news is noise. RetroCast delivers today's headlines with the calm authority of vintage broadcast eras — eight styles, four countries, generated fresh every day.">
+  <meta property="og:title" content="RetroCast - News Without the Noise">
+  <meta property="og:description" content="Today's news. Yesterday's voice. AI-generated retro broadcasts that strip away the shouting and bring back the calm.">
+  <meta property="og:type" content="website">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0c1428;
+      --text: #f0f0f0;
+      --muted: #8a8aa0;
+      --gold: #d4a44c;
+      --gold-dim: rgba(212, 164, 76, 0.3);
+      --glass-bg: rgba(255, 255, 255, 0.04);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-bg-hover: rgba(255, 255, 255, 0.08);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* --- Globe background layer --- */
+    .bg-globe {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    /* Warm golden glow behind the globe */
+    .bg-globe::before {
+      content: '';
+      position: absolute;
+      top: 35%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 110vmin;
+      height: 110vmin;
+      border-radius: 50%;
+      background: radial-gradient(
+        circle,
+        rgba(212, 164, 76, 0.12) 0%,
+        rgba(212, 164, 76, 0.06) 30%,
+        rgba(80, 120, 200, 0.04) 50%,
+        transparent 70%
+      );
+      pointer-events: none;
+    }
+
+    /* Subtle ambient blue fill */
+    .bg-globe::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        ellipse 80% 70% at 50% 40%,
+        rgba(40, 70, 140, 0.08) 0%,
+        transparent 60%
+      );
+      pointer-events: none;
+    }
+
+    #globeCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Video background (hidden by default, swap in when video is ready) */
+    .bg-globe video {
+      display: none;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .bg-globe.has-video video { display: block; }
+    .bg-globe.has-video canvas { display: none; }
+    .bg-globe.has-video::before { display: none; }
+
+    /* Dark scrim over video for text readability */
+    .bg-globe.has-video::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(to bottom,
+          rgba(8, 14, 30, 0.75) 0%,
+          rgba(8, 14, 30, 0.55) 30%,
+          rgba(8, 14, 30, 0.40) 45%,
+          rgba(8, 14, 30, 0.45) 60%,
+          rgba(8, 14, 30, 0.60) 80%,
+          rgba(8, 14, 30, 0.80) 100%
+        );
+      pointer-events: none;
+      z-index: 1;
+    }
+
+
+    /* --- Fade-rise animation --- */
+    .fade-rise {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+    .fade-rise.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* --- Nav --- */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: transparent;
+      border-bottom: none;
+    }
+
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-family: 'Instrument Serif', serif;
+      font-size: 1.5rem;
+      color: var(--gold);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 28px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    /* --- Hero --- */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 76px 24px 32px;
+      position: relative;
+      z-index: 2;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .hero-top {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .hero h1 {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(2.6rem, 6vw, 4.5rem);
+      font-weight: 400;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      text-shadow: 0 2px 24px rgba(0, 0, 0, 0.7), 0 1px 6px rgba(0, 0, 0, 0.6);
+    }
+
+    .hero h1 em {
+      font-family: 'Instrument Serif', serif;
+      color: var(--gold);
+      font-style: italic;
+    }
+
+    .hero .tagline {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(0.95rem, 1.8vw, 1.2rem);
+      color: var(--gold);
+      margin-top: 8px;
+      font-style: italic;
+      text-shadow: 0 1px 16px rgba(0, 0, 0, 0.7);
+    }
+
+    /* --- Date navigation --- */
+    .date-nav {
+      margin-top: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 12px;
+      border-radius: 100px;
+      background: rgba(8, 14, 30, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .date-nav-btn {
+      background: none;
+      border: none;
+      color: var(--gold);
+      cursor: pointer;
+      padding: 2px 6px;
+      font-size: 1rem;
+      line-height: 1;
+      border-radius: 4px;
+      transition: opacity 0.2s, background 0.2s;
+    }
+
+    .date-nav-btn:hover { background: rgba(212, 164, 76, 0.15); }
+    .date-nav-btn:disabled { opacity: 0.25; cursor: default; background: none; }
+
+    .date-nav-label {
+      color: var(--gold);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      min-width: 140px;
+      text-align: center;
+    }
+
+    /* --- Featured broadcast card --- */
+    .featured {
+      width: 100%;
+    }
+
+    .featured-card {
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      background: rgba(8, 14, 30, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      padding: 32px 36px;
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      cursor: pointer;
+      transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .featured-card:hover {
+      background: rgba(8, 14, 30, 0.72);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.35);
+    }
+
+    .featured-card.active {
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.35);
+    }
+
+    .featured-play {
+      flex-shrink: 0;
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      background: var(--gold);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+
+    .featured-play:hover { transform: scale(1.08); }
+    .featured-play:active { transform: scale(0.96); }
+
+    .featured-play svg {
+      width: 28px;
+      height: 28px;
+      fill: var(--bg);
+    }
+
+    .featured-play #bigIconPlay {
+      margin-left: 3px;
+    }
+
+    /* Loading state for featured play button — orbiting arc */
+    .featured-play.loading {
+      pointer-events: none;
+      position: relative;
+    }
+
+    .featured-play.loading::after {
+      content: '';
+      position: absolute;
+      top: -5px;
+      left: -5px;
+      width: 86px;
+      height: 86px;
+      border: 2px solid transparent;
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 1.2s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .featured-info { flex: 1; min-width: 0; }
+
+    .featured-tags {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .featured-tag {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .featured-name {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 2.2rem;
+      color: #ffffff;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    .featured-desc {
+      font-size: 0.95rem;
+      color: rgba(255, 255, 255, 0.75);
+      line-height: 1.5;
+    }
+
+    /* Loading message */
+    .featured-loading {
+      display: none;
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: var(--gold);
+      font-style: italic;
+      animation: pulse-text 2s ease-in-out infinite;
+    }
+
+    .featured-loading.visible { display: block; }
+
+    @keyframes pulse-text {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    /* Inline player inside featured card */
+    .featured-player {
+      margin-top: 14px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .featured-player.visible { display: flex; }
+
+    .player-progress-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .player-track {
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .player-track-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      border-radius: 2px;
+      background: var(--gold);
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    .player-time {
+      font-size: 0.7rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* --- Style switcher pills --- */
+    .style-switcher {
+      width: 100%;
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .style-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 100px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(8, 14, 30, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .style-pill:hover {
+      background: rgba(8, 14, 30, 0.65);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+    }
+
+    .style-pill.active {
+      background: rgba(8, 14, 30, 0.65);
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .style-pill.dimmed {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .pill-era {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      opacity: 0.7;
+    }
+
+    /* --- Scroll indicator --- */
+    .scroll-indicator {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-decoration: none;
+      animation: bounce 2s ease-in-out infinite;
+    }
+
+    .scroll-indicator svg {
+      width: 20px;
+      height: 20px;
+      stroke: var(--gold);
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.5; }
+      50% { transform: translateX(-50%) translateY(6px); opacity: 1; }
+    }
+
+    /* --- Section shared --- */
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 400;
+      margin-bottom: 32px;
+      color: #ffffff;
+      text-shadow: 0 1px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    /* --- How It Works --- */
+    .how-section {
+      position: relative;
+      z-index: 2;
+      padding: 80px 24px;
+      background: rgba(8, 14, 30, 0.78);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+    }
+
+    .how-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .pipeline {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: 0;
+      margin-top: 8px;
+    }
+
+    .pipeline-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 20px;
+      padding: 40px 28px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .pipe-step {
+      flex: 1;
+      max-width: 320px;
+      text-align: center;
+      padding: 0 16px;
+    }
+
+    .pipe-number {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid var(--gold);
+      color: var(--gold);
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+    }
+
+    .pipe-logo {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 14px;
+      padding: 10px;
+    }
+
+    .pipe-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 12px;
+    }
+
+    .pipe-logo svg {
+      width: 40px;
+      height: 40px;
+    }
+
+    .pipe-title {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+      color: #ffffff;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .pipe-desc {
+      font-size: 0.85rem;
+      color: #a0a0b8;
+      line-height: 1.65;
+      max-width: 260px;
+      margin: 0 auto;
+    }
+
+    .pipe-arrow {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      padding-top: 18px;
+      color: var(--gold);
+      opacity: 0.4;
+    }
+
+    .pipe-arrow svg {
+      width: 40px;
+      height: 40px;
+    }
+
+    /* --- Footer --- */
+    footer {
+      position: relative;
+      z-index: 2;
+      padding: 32px 24px;
+      text-align: center;
+      background: rgba(8, 14, 30, 0.88);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer-line {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .footer-line a {
+      color: var(--gold);
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+
+    .footer-line a:hover { opacity: 0.8; }
+
+    .footer-line strong {
+      color: var(--text);
+    }
+
+    /* --- Ask the Anchor --- */
+    .ask-anchor-btn {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      padding: 10px 22px;
+      border-radius: 100px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s;
+      letter-spacing: 0.02em;
+    }
+
+    .ask-anchor-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .ask-anchor-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: #ffffff;
+    }
+
+    .conversation-live {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      margin-top: 14px;
+      padding: 18px 24px;
+      border-radius: 16px;
+      background: rgba(212, 164, 76, 0.06);
+      border: 1px solid rgba(212, 164, 76, 0.25);
+      width: 100%;
+    }
+
+    .conversation-live.visible {
+      display: flex;
+    }
+
+    .conv-top-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .live-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #e25555;
+      animation: pulse-dot 1.5s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.1); }
+    }
+
+    .conversation-status {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--gold);
+      letter-spacing: 0.04em;
+    }
+
+    .conversation-status .firecrawl-icon {
+      display: none;
+      width: 14px;
+      height: 14px;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+
+    .conversation-status.researching .firecrawl-icon {
+      display: inline;
+    }
+
+    #waveformCanvas {
+      width: 100%;
+      max-width: 300px;
+      height: 40px;
+      border-radius: 8px;
+    }
+
+    .end-conversation-btn {
+      padding: 8px 20px;
+      border-radius: 100px;
+      border: 1px solid rgba(226, 85, 85, 0.4);
+      background: rgba(226, 85, 85, 0.1);
+      color: #e25555;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .end-conversation-btn:hover {
+      background: rgba(226, 85, 85, 0.2);
+      border-color: #e25555;
+    }
+
+    /* --- Ask the Anchor callout --- */
+    .ask-anchor-callout {
+      margin-top: 32px;
+      padding: 24px 28px;
+      border-radius: 16px;
+      background: rgba(212, 164, 76, 0.04);
+      border: 1px solid rgba(212, 164, 76, 0.15);
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .ask-anchor-callout-icon {
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(212, 164, 76, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ask-anchor-callout-icon svg {
+      width: 24px;
+      height: 24px;
+      fill: var(--gold);
+    }
+
+    .ask-anchor-callout-text h4 {
+      font-family: 'Instrument Serif', serif;
+      font-size: 1.1rem;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .ask-anchor-callout-text p {
+      font-size: 0.82rem;
+      color: #a0a0b8;
+      line-height: 1.6;
+    }
+
+    /* --- Responsive --- */
+    @media (max-width: 768px) {
+      .hero { padding: 76px 16px 24px; }
+
+      .featured-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 14px;
+        padding: 20px 18px;
+      }
+
+      .featured-player { flex-wrap: wrap; justify-content: center; }
+
+      .style-switcher { gap: 6px; }
+      .style-pill { padding: 6px 12px; font-size: 0.72rem; }
+
+      .pipeline {
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+      }
+      .pipe-step { max-width: 100%; }
+      .pipe-arrow { transform: rotate(90deg); padding-top: 0; padding: 4px 0; }
+
+      .footer-inner {
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .nav-links { gap: 16px; }
+
+      .conversation-live { padding: 14px 16px; }
+
+      .ask-anchor-callout {
+        flex-direction: column;
+        text-align: center;
+        align-items: center;
+        gap: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Globe background -->
+  <div class="bg-globe has-video">
+    <canvas id="globeCanvas"></canvas>
+    <video id="globeVideo" autoplay loop muted playsinline src="globe.mp4"></video>
+  </div>
+
+  <!-- Nav -->
+  <nav>
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">RetroCast</a>
+      <ul class="nav-links">
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="https://github.com/ppv999/retrocast" target="_blank" rel="noopener">GitHub</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-top">
+      <div class="fade-rise" style="--delay: 0s">
+        <h1>News Without <em>the Noise.</em></h1>
+      </div>
+      <p class="tagline fade-rise" style="--delay: 0.1s">Today's news. Yesterday's voice.</p>
+      <!-- Date navigation -->
+      <div class="date-nav fade-rise" style="--delay: 0.25s">
+        <button class="date-nav-btn" id="datePrev" aria-label="Previous date">&#9664;</button>
+        <span class="date-nav-label" id="dateLabel"></span>
+        <button class="date-nav-btn" id="dateNext" aria-label="Next date">&#9654;</button>
+      </div>
+    </div>
+
+    <!-- Main player card -->
+    <div class="featured fade-rise" style="--delay: 0.33s">
+      <div class="featured-card" id="featuredCard">
+        <div class="featured-play" id="featuredPlayBtn">
+          <svg id="bigIconPlay" viewBox="0 0 24 24"><polygon points="8,4 20,12 8,20"/></svg>
+          <svg id="bigIconPause" viewBox="0 0 24 24" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>
+        </div>
+        <div class="featured-info">
+          <div class="featured-tags" id="featuredTags"></div>
+          <div class="featured-name" id="featuredName"></div>
+          <div class="featured-desc" id="featuredDesc"></div>
+          <div class="featured-loading" id="featuredLoading">Tuning in... we're getting today's broadcast ready</div>
+          <div class="featured-player" id="featuredPlayer">
+            <div class="player-progress-wrap">
+              <div class="player-track" id="playerTrack">
+                <div class="player-track-fill" id="playerFill"></div>
+              </div>
+              <span class="player-time" id="playerTime">0:00 / 0:00</span>
+            </div>
+          </div>
+          <!-- Ask the Anchor button -->
+          <button class="ask-anchor-btn" id="askAnchorBtn">
+            <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+            <span class="ask-btn-label">Dial In</span>
+          </button>
+          <!-- Live conversation UI -->
+          <div class="conversation-live" id="conversationLive">
+            <div class="conv-top-row">
+              <div class="live-dot"></div>
+              <span class="conversation-status" id="convStatus">
+                <svg class="firecrawl-icon" viewBox="0 0 200 284" xmlns="http://www.w3.org/2000/svg"><path d="M166.862 90.7716C155.812 94.0514 147.483 101.471 141.383 109.53C140.073 111.26 137.343 109.96 137.863 107.841C149.543 59.8136 134.113 19.896 86.0157 0.247269C83.5758-0.752669 81.0359 1.43719 81.6759 3.99704C103.555 91.8416 11.5294 84.432 23.1588 184.016C23.3588 185.726 21.4389 186.896 20.039 185.896C15.6792 182.766 10.8095 176.236 7.46963 171.647C6.48968 170.297 4.36978 170.677 3.9198 172.287C1.25994 181.906 0 190.965 0 199.965C0 234.963 17.9891 265.771 45.2177 283.63C46.7777 284.65 48.7776 283.19 48.2476 281.4C46.8477 276.7 46.0577 271.74 45.9977 266.611C45.9977 263.461 46.1977 260.241 46.6877 257.241C47.8276 249.702 50.4475 242.522 54.8473 235.983C69.9365 213.334 100.185 191.455 95.3552 161.747C95.0453 159.867 97.2651 158.627 98.6651 159.917C119.974 179.386 124.194 205.575 120.694 229.063C120.394 231.103 122.954 232.193 124.244 230.593C127.504 226.513 131.483 222.933 135.813 220.244C136.893 219.574 138.333 220.084 138.743 221.284C141.153 228.293 144.733 234.873 148.113 241.452C152.152 249.362 154.302 258.391 153.962 267.951C153.792 272.6 153.022 277.1 151.732 281.38C151.182 283.19 153.162 284.7 154.752 283.66C182.001 265.801 200 234.993 200 199.975C200 187.806 197.87 175.876 193.84 164.697C185.391 141.248 163.952 123.64 169.372 93.0815C169.632 91.6216 168.282 90.3517 166.862 90.7716Z" fill="#FA5D19"/></svg>
+                Connecting...
+              </span>
+            </div>
+            <canvas id="waveformCanvas"></canvas>
+            <button class="end-conversation-btn" id="endConvBtn">End Conversation</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Style switcher pills -->
+    <div class="style-switcher fade-rise" style="--delay: 0.4s" id="styleSwitcher">
+      <!-- Built by JS -->
+    </div>
+
+    <!-- Scroll indicator -->
+    <a href="#how-it-works" class="scroll-indicator fade-rise" style="--delay: 0.55s">
+      <span>How it works</span>
+      <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+    </a>
+  </div>
+
+  <audio id="audioEl" preload="none"></audio>
+
+  <!-- How It Works -->
+  <div class="how-section" id="how-it-works">
+    <div class="how-inner">
+      <div class="section-label fade-rise">How it works</div>
+      <h2 class="section-title fade-rise">From headlines to broadcast in four steps</h2>
+
+      <div class="pipeline-card fade-rise" style="--delay: 0s">
+      <div class="pipeline">
+        <!-- Step 1: Firecrawl gathers -->
+        <div class="pipe-step">
+          <div class="pipe-number">1</div>
+          <div class="pipe-logo">
+            <svg viewBox="0 0 200 284" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M166.862 90.7716C155.812 94.0514 147.483 101.471 141.383 109.53C140.073 111.26 137.343 109.96 137.863 107.841C149.543 59.8136 134.113 19.896 86.0157 0.247269C83.5758 -0.752669 81.0359 1.43719 81.6759 3.99704C103.555 91.8416 11.5294 84.432 23.1588 184.016C23.3588 185.726 21.4389 186.896 20.039 185.896C15.6792 182.766 10.8095 176.236 7.46963 171.647C6.48968 170.297 4.36978 170.677 3.9198 172.287C1.25994 181.906 0 190.965 0 199.965C0 234.963 17.9891 265.771 45.2177 283.63C46.7777 284.65 48.7776 283.19 48.2476 281.4C46.8477 276.7 46.0577 271.74 45.9977 266.611C45.9977 263.461 46.1977 260.241 46.6877 257.241C47.8276 249.702 50.4475 242.522 54.8473 235.983C69.9365 213.334 100.185 191.455 95.3552 161.747C95.0453 159.867 97.2651 158.627 98.6651 159.917C119.974 179.386 124.194 205.575 120.694 229.063C120.394 231.103 122.954 232.193 124.244 230.593C127.504 226.513 131.483 222.933 135.813 220.244C136.893 219.574 138.333 220.084 138.743 221.284C141.153 228.293 144.733 234.873 148.113 241.452C152.152 249.362 154.302 258.391 153.962 267.951C153.792 272.6 153.022 277.1 151.732 281.38C151.182 283.19 153.162 284.7 154.752 283.66C182.001 265.801 200 234.993 200 199.975C200 187.806 197.87 175.876 193.84 164.697C185.391 141.248 163.952 123.64 169.372 93.0815C169.632 91.6216 168.282 90.3517 166.862 90.7716Z" fill="#FA5D19"/>
+            </svg>
+          </div>
+          <h3 class="pipe-title">Firecrawl gathers news</h3>
+          <p class="pipe-desc">Today's top stories in politics, economy, sports, and science, sourced worldwide.</p>
+        </div>
+
+        <!-- Arrow -->
+        <div class="pipe-arrow">
+          <svg viewBox="0 0 40 40" fill="none"><path d="M8 20h20M22 14l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+
+        <!-- Step 2: Firecrawl verifies -->
+        <div class="pipe-step">
+          <div class="pipe-number">2</div>
+          <div class="pipe-logo">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M24 4L8 12v12c0 10.5 6.8 20.3 16 24 9.2-3.7 16-13.5 16-24V12L24 4z" fill="#FA5D19" fill-opacity="0.15" stroke="#FA5D19" stroke-width="1.5"/>
+              <path d="M18 24l4 4 8-8" stroke="#FA5D19" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="pipe-title">Firecrawl verifies facts</h3>
+          <p class="pipe-desc">Cross-checks claims to catch fake news. Flagged stories get called out on air.</p>
+        </div>
+
+        <!-- Arrow -->
+        <div class="pipe-arrow">
+          <svg viewBox="0 0 40 40" fill="none"><path d="M8 20h20M22 14l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+
+        <!-- Step 3: AI Editor -->
+        <div class="pipe-step">
+          <div class="pipe-number">3</div>
+          <div class="pipe-logo">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="48" height="48" rx="12" fill="#A78BFA" fill-opacity="0.15"/>
+              <path d="M24 10l1.5 4.5L30 16l-4.5 1.5L24 22l-1.5-4.5L18 16l4.5-1.5L24 10z" fill="#A78BFA"/>
+              <path d="M15 22l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z" fill="#C4B5FD"/>
+              <path d="M33 22l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z" fill="#C4B5FD"/>
+              <path d="M24 28l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z" fill="#DDD6FE" opacity="0.8"/>
+            </svg>
+          </div>
+          <h3 class="pipe-title">AI writes the script</h3>
+          <p class="pipe-desc">Selects the best stories and rewrites them in each era's authentic broadcast voice.</p>
+        </div>
+
+        <!-- Arrow -->
+        <div class="pipe-arrow">
+          <svg viewBox="0 0 40 40" fill="none"><path d="M8 20h20M22 14l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+
+        <!-- Step 4: ElevenLabs -->
+        <div class="pipe-step">
+          <div class="pipe-number">4</div>
+          <div class="pipe-logo">
+            <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" fill-rule="evenodd" clip-rule="evenodd" stroke-linejoin="round" stroke-miterlimit="2">
+              <path d="M106.667 0h106.666v512H106.667V0zm192 0h106.667v512H298.667V0z" fill="#ffffff"/>
+            </svg>
+          </div>
+          <h3 class="pipe-title">ElevenLabs delivers it</h3>
+          <p class="pipe-desc">Distinct voices for each era, natural delivery, and period-appropriate pacing.</p>
+        </div>
+      </div>
+      </div>
+
+      <!-- Ask the Anchor callout -->
+      <div class="ask-anchor-callout fade-rise" style="--delay: 0.1s">
+        <div class="ask-anchor-callout-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+        </div>
+        <div class="ask-anchor-callout-text">
+          <h4>Dial In</h4>
+          <p>After the broadcast, talk to the anchor live. Ask questions, verify news, get advice, or request deeper research. Powered by ElevenLabs Agents and Firecrawl search working together in real time.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-inner">
+      <span class="footer-line">Built by <a href="https://x.com/ppv999" target="_blank" rel="noopener">Pranav Pai Vernekar</a> &middot; Powered by <strong>Firecrawl</strong> &amp; <strong>ElevenLabs</strong></span>
+    </div>
+  </footer>
+
+  <!-- ElevenLabs Conversational AI Widget (fallback) -->
+  <script src="https://elevenlabs.io/convai-widget/index.js" async></script>
+  <script>
+    // --- ElevenLabs Conversation SDK (loaded dynamically via @11labs/client) ---
+    let ElevenLabsConversation = null;
+    async function loadElevenLabsSDK() {
+      if (ElevenLabsConversation) return ElevenLabsConversation;
+      try {
+        const mod = await import('https://cdn.jsdelivr.net/npm/@11labs/client@latest/+esm');
+        ElevenLabsConversation = mod.Conversation;
+        console.log('ElevenLabs Conversation SDK loaded');
+        return ElevenLabsConversation;
+      } catch (e) {
+        console.warn('ElevenLabs Conversation SDK not available:', e);
+        return null;
+      }
+    }
+    // Pre-load the SDK
+    loadElevenLabsSDK();
+
+    // --- Style data (8 styles, 4 countries) ---
+    const STYLES = [
+      {
+        key: 'doordarshan-90s',
+        name: 'Indian Television News',
+        era: '90s',
+        lang: 'Hindi',
+        region: 'in',
+        desc: 'Post-liberalization era. Two anchors, formal Hindi, the nation\'s appointment viewing.',
+        askBtn: 'स्टूडियो से जुड़ें'
+      },
+      {
+        key: 'akashvani',
+        name: 'Indian Radio Bulletin',
+        era: '80s',
+        lang: 'Hindi',
+        region: 'in',
+        desc: 'Solo newsreader, the voice reaching every transistor radio across India.',
+        askBtn: 'स्टूडियो से जुड़ें'
+      },
+      {
+        key: 'bbc-tv',
+        name: 'British Television News',
+        era: '80s',
+        lang: 'English',
+        region: 'gb',
+        desc: 'Single presenter, warm RP authority, "And finally" — the Nine O\'Clock News era.',
+        askBtn: 'Dial In'
+      },
+      {
+        key: 'bbc',
+        name: 'British World Service',
+        era: '80s',
+        lang: 'English',
+        region: 'gb',
+        desc: 'Shortwave radio. Clipped, precise, the world\'s news in received pronunciation.',
+        askBtn: 'Dial In'
+      },
+      {
+        key: 'us-network',
+        name: 'American Network News',
+        era: '70s',
+        lang: 'English',
+        region: 'us',
+        desc: 'Solo anchor, deep baritone, "And that\'s the way it is" — the Cronkite era.',
+        askBtn: 'Dial In'
+      },
+      {
+        key: 'npr',
+        name: 'American Public Radio',
+        era: '90s',
+        lang: 'English',
+        region: 'us',
+        desc: 'Two hosts, conversational storytelling, driveway moments.',
+        askBtn: 'Dial In'
+      },
+      {
+        key: 'jornal',
+        name: 'Brazilian National Journal',
+        era: '80s',
+        lang: 'Portuguese',
+        region: 'br',
+        desc: 'Two anchors, solemn "Boa noite", the whole nation watching — Jornal Nacional era.',
+        askBtn: 'Ligue Agora'
+      },
+      {
+        key: 'reporter-esso',
+        name: 'Brazilian Radio Bulletin',
+        era: '60s',
+        lang: 'Portuguese',
+        region: 'br',
+        desc: 'Solo reader, punchy commercial radio, "testemunha ocular da Historia!"',
+        askBtn: 'Ligue Agora'
+      }
+    ];
+
+    // --- Detect region from timezone ---
+    function detectRegion() {
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        if (/^Asia\/(Kolkata|Calcutta|Colombo)/.test(tz)) return 'in';
+        if (/^Europe\/(London|Dublin|Belfast|Jersey|Guernsey|Isle_of_Man)/.test(tz)) return 'gb';
+        if (/^America\/(Sao_Paulo|Brasilia|Fortaleza|Recife|Belem|Manaus|Rio_Branco|Cuiaba|Campo_Grande|Porto_Velho|Boa_Vista|Araguaina|Maceio|Bahia|Santarem|Noronha)/.test(tz)) return 'br';
+        if (/^America\//.test(tz) || /^US\//.test(tz) || /^Pacific\/(Honolulu)/.test(tz)) return 'us';
+        if (/^Asia\//.test(tz)) return 'in';
+        if (/^Europe\//.test(tz)) return 'gb';
+      } catch (e) {}
+      return 'in';
+    }
+
+    // Order styles: region-matching first, then rest
+    function orderStyles(region) {
+      const prefs = { 'in': 'doordarshan-90s', 'gb': 'bbc-tv', 'us': 'us-network', 'br': 'jornal' };
+      const firstKey = prefs[region] || 'doordarshan-90s';
+      const first = STYLES.find(s => s.key === firstKey) || STYLES[0];
+      const rest = STYLES.filter(s => s.key !== firstKey);
+      return [first, ...rest];
+    }
+
+    const userRegion = detectRegion();
+    const ordered = orderStyles(userRegion);
+    let currentStyle = ordered[0];
+
+    // --- Date management ---
+    let manifest = { dates: {}, styles: {} };
+    let availableDates = [];
+    let currentDateIndex = -1;
+
+    function todayStr() {
+      const d = new Date();
+      return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+    }
+
+    function formatDateLabel(dateStr) {
+      const parts = dateStr.split('-');
+      const d = new Date(parts[0], parts[1] - 1, parts[2]);
+      const opts = { month: 'long', day: 'numeric' };
+      const label = d.toLocaleDateString('en-US', opts);
+      return dateStr === todayStr() ? label + ' (Today)' : label;
+    }
+
+    function currentDate() {
+      return currentDateIndex >= 0 && currentDateIndex < availableDates.length
+        ? availableDates[currentDateIndex]
+        : todayStr();
+    }
+
+    function isToday() {
+      return currentDate() === todayStr();
+    }
+
+    // --- DOM refs ---
+    const audioEl = document.getElementById('audioEl');
+    const datePrev = document.getElementById('datePrev');
+    const dateNext = document.getElementById('dateNext');
+    const dateLabel = document.getElementById('dateLabel');
+    const featuredCard = document.getElementById('featuredCard');
+    const featuredPlayBtn = document.getElementById('featuredPlayBtn');
+    const featuredName = document.getElementById('featuredName');
+    const featuredDesc = document.getElementById('featuredDesc');
+    const featuredTags = document.getElementById('featuredTags');
+    const featuredLoading = document.getElementById('featuredLoading');
+    const featuredPlayer = document.getElementById('featuredPlayer');
+    const bigIconPlay = document.getElementById('bigIconPlay');
+    const bigIconPause = document.getElementById('bigIconPause');
+    const playerTrack = document.getElementById('playerTrack');
+    const playerFill = document.getElementById('playerFill');
+    const playerTime = document.getElementById('playerTime');
+    const switcherEl = document.getElementById('styleSwitcher');
+    const askAnchorBtn = document.getElementById('askAnchorBtn');
+
+    let activeKey = null;
+    let pollTimer = null;
+
+    // --- Audio path helper ---
+    function audioPath(dateStr, styleKey) {
+      return `audio/${dateStr}/${styleKey}.mp3`;
+    }
+
+    // --- Update date navigation UI ---
+    function updateDateNav() {
+      dateLabel.textContent = formatDateLabel(currentDate());
+      datePrev.disabled = currentDateIndex <= 0;
+      dateNext.disabled = isToday();
+      updatePillStates();
+    }
+
+    // --- Update pill dimming for past dates ---
+    function updatePillStates() {
+      const date = currentDate();
+      const dateInfo = manifest.dates && manifest.dates[date];
+      const availableStyles = dateInfo ? dateInfo.styles : [];
+
+      document.querySelectorAll('.style-pill').forEach(p => {
+        const key = p.dataset.key;
+        // On today, all pills are active (can generate on demand)
+        // On past dates, dim styles that weren't generated
+        if (isToday()) {
+          p.classList.remove('dimmed');
+        } else {
+          p.classList.toggle('dimmed', !availableStyles.includes(key));
+        }
+      });
+    }
+
+    // --- Populate featured card ---
+    function setFeatured(s) {
+      currentStyle = s;
+      featuredName.textContent = s.name;
+      featuredDesc.textContent = s.desc;
+      featuredTags.innerHTML = `<span class="featured-tag">${s.era}</span><span class="featured-tag">${s.lang}</span>`;
+      // Update "Ask the Anchor" button label per language
+      const btnLabel = askAnchorBtn.querySelector('.ask-btn-label');
+      if (btnLabel) btnLabel.textContent = s.askBtn || 'Dial In';
+      // Update pill active states
+      document.querySelectorAll('.style-pill').forEach(p =>
+        p.classList.toggle('active', p.dataset.key === s.key)
+      );
+      // Pause audio & hide loading/player when switching styles
+      if (!audioEl.paused) {
+        audioEl.pause();
+      }
+      featuredLoading.classList.remove('visible');
+      featuredPlayBtn.classList.remove('loading');
+      featuredPlayer.classList.remove('visible');
+      syncIcons(false);
+    }
+
+    // --- Build style switcher pills ---
+    ordered.forEach(s => {
+      const pill = document.createElement('button');
+      pill.className = 'style-pill';
+      pill.dataset.key = s.key;
+      pill.innerHTML = `${s.name} <span class="pill-era">${s.era}</span>`;
+      pill.addEventListener('click', () => {
+        setFeatured(s);
+      });
+      switcherEl.appendChild(pill);
+    });
+
+    // Set initial featured
+    setFeatured(ordered[0]);
+
+    // --- Play logic with on-demand generation ---
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function showLoading() {
+      featuredPlayBtn.classList.add('loading');
+      featuredLoading.classList.add('visible');
+      featuredPlayer.classList.remove('visible');
+    }
+
+    function hideLoading() {
+      featuredPlayBtn.classList.remove('loading');
+      featuredLoading.classList.remove('visible');
+    }
+
+    async function playStyle(s) {
+      stopPolling();
+      const date = currentDate();
+      const path = audioPath(date, s.key);
+
+      featuredCard.classList.add('active');
+
+      // Check if audio exists
+      try {
+        const res = await fetch(`/api/status/${date}/${s.key}`);
+        const data = await res.json();
+
+        if (data.ready) {
+          // Audio exists — play it
+          hideLoading();
+          featuredPlayer.classList.add('visible');
+          if (activeKey !== s.key + ':' + date) {
+            audioEl.src = path;
+            activeKey = s.key + ':' + date;
+          }
+          audioEl.play();
+        } else if (isToday()) {
+          // Today and not ready — trigger generation
+          showLoading();
+          await fetch(`/api/generate/${date}/${s.key}`, { method: 'POST' });
+
+          // Poll for completion and show progress
+          pollTimer = setInterval(async () => {
+            try {
+              const statusRes = await fetch(`/api/status/${date}/${s.key}`);
+              const statusData = await statusRes.json();
+              if (statusData.ready) {
+                stopPolling();
+                hideLoading();
+                featuredPlayer.classList.add('visible');
+                audioEl.src = path;
+                activeKey = s.key + ':' + date;
+                audioEl.play();
+                loadManifest();
+              } else if (statusData.error) {
+                stopPolling();
+                hideLoading();
+                featuredLoading.classList.add('visible');
+                featuredLoading.textContent = statusData.error + '. Click play to retry.';
+              } else if (statusData.step) {
+                featuredLoading.textContent = statusData.step + '...';
+              }
+            } catch (e) { /* keep polling */ }
+          }, 3000);
+        } else {
+          // Past date and not available — shouldn't happen, but handle gracefully
+          featuredDesc.textContent = 'This broadcast is not available for this date.';
+        }
+      } catch (e) {
+        // If API is not available (static hosting), try direct audio
+        hideLoading();
+        featuredPlayer.classList.add('visible');
+        if (activeKey !== s.key + ':' + date) {
+          audioEl.src = path;
+          activeKey = s.key + ':' + date;
+        }
+        audioEl.play();
+      }
+    }
+
+    featuredPlayBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // If already playing this style, toggle pause
+      const date = currentDate();
+      if (activeKey === currentStyle.key + ':' + date && !audioEl.paused) {
+        audioEl.pause();
+      } else if (activeKey === currentStyle.key + ':' + date && audioEl.paused) {
+        audioEl.play();
+      } else {
+        playStyle(currentStyle);
+      }
+    });
+
+    featuredCard.addEventListener('click', () => {
+      // Only trigger play if not clicking the button itself
+      const date = currentDate();
+      if (activeKey === currentStyle.key + ':' + date && !audioEl.paused) {
+        audioEl.pause();
+      } else if (activeKey === currentStyle.key + ':' + date && audioEl.paused) {
+        audioEl.play();
+      } else {
+        playStyle(currentStyle);
+      }
+    });
+
+    // --- Sync play/pause icons on big button ---
+    function syncIcons(playing) {
+      bigIconPlay.style.display = playing ? 'none' : 'block';
+      bigIconPause.style.display = playing ? 'block' : 'none';
+    }
+
+    audioEl.addEventListener('play', () => {
+      syncIcons(true);
+      // Show "Ask the Anchor" button when audio plays
+      askAnchorBtn.style.display = 'inline-flex';
+    });
+    audioEl.addEventListener('pause', () => syncIcons(false));
+    audioEl.addEventListener('ended', () => {
+      syncIcons(false);
+      // Show "Ask the Anchor" button when audio ends
+      askAnchorBtn.style.display = 'inline-flex';
+    });
+
+    // --- Progress bar ---
+    function fmtTime(sec) {
+      if (!isFinite(sec)) return '0:00';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    audioEl.addEventListener('timeupdate', () => {
+      if (!audioEl.duration) return;
+      const pct = (audioEl.currentTime / audioEl.duration) * 100;
+      playerFill.style.width = pct + '%';
+      playerTime.textContent = `${fmtTime(audioEl.currentTime)} / ${fmtTime(audioEl.duration)}`;
+    });
+
+    playerTrack.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!audioEl.duration) return;
+      const rect = playerTrack.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      audioEl.currentTime = pct * audioEl.duration;
+    });
+
+    // --- Date navigation ---
+    datePrev.addEventListener('click', () => {
+      if (currentDateIndex > 0) {
+        currentDateIndex--;
+        updateDateNav();
+        stopPolling();
+        hideLoading();
+        featuredPlayer.classList.remove('visible');
+        activeKey = null;
+      }
+    });
+
+    dateNext.addEventListener('click', () => {
+      if (currentDateIndex < availableDates.length - 1) {
+        currentDateIndex++;
+        updateDateNav();
+        stopPolling();
+        hideLoading();
+        featuredPlayer.classList.remove('visible');
+        activeKey = null;
+      }
+    });
+
+    // --- Load manifest ---
+    async function loadManifest() {
+      try {
+        const res = await fetch('/api/manifest');
+        manifest = await res.json();
+      } catch (e) {
+        // Fallback: try loading manifest.json directly (static hosting)
+        try {
+          const res = await fetch('audio/manifest.json');
+          manifest = await res.json();
+        } catch (e2) {
+          manifest = { dates: {}, styles: {} };
+        }
+      }
+
+      // Build sorted date list, always include today
+      const today = todayStr();
+      const dates = new Set(Object.keys(manifest.dates || {}));
+      dates.add(today);
+      availableDates = Array.from(dates).sort();
+      currentDateIndex = availableDates.indexOf(today);
+      if (currentDateIndex === -1) currentDateIndex = availableDates.length - 1;
+
+      updateDateNav();
+    }
+
+    // --- Init ---
+    loadManifest();
+
+    // --- Fade-rise on load / scroll ---
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const delay = getComputedStyle(entry.target).getPropertyValue('--delay') || '0s';
+          entry.target.style.transitionDelay = delay;
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.fade-rise').forEach(el => observer.observe(el));
+
+    // --- Nav: transparent at top, glass on scroll ---
+    const navEl = document.querySelector('nav');
+    window.addEventListener('scroll', () => {
+      navEl.classList.toggle('scrolled', window.scrollY > 40);
+    }, { passive: true });
+
+    // --- "Ask the Anchor" conversation logic ---
+    const conversationLive = document.getElementById('conversationLive');
+    const convStatus = document.getElementById('convStatus');
+    const endConvBtn = document.getElementById('endConvBtn');
+    const waveformCanvas = document.getElementById('waveformCanvas');
+    let activeConversation = null;
+    let waveformAnimId = null;
+
+    // Waveform visualizer
+    function startWaveform() {
+      const ctx = waveformCanvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      waveformCanvas.width = waveformCanvas.offsetWidth * dpr;
+      waveformCanvas.height = waveformCanvas.offsetHeight * dpr;
+      ctx.scale(dpr, dpr);
+      const w = waveformCanvas.offsetWidth;
+      const h = waveformCanvas.offsetHeight;
+      const bars = 24;
+      const barW = w / bars * 0.6;
+      const gap = w / bars * 0.4;
+
+      function draw() {
+        ctx.clearRect(0, 0, w, h);
+        for (let i = 0; i < bars; i++) {
+          const amp = activeConversation ? (0.3 + 0.7 * Math.abs(Math.sin(Date.now() / 200 + i * 0.5))) : 0.15;
+          const barH = h * amp * 0.8;
+          const x = i * (barW + gap) + gap / 2;
+          const y = (h - barH) / 2;
+          ctx.fillStyle = `rgba(212, 164, 76, ${amp * 0.7})`;
+          ctx.fillRect(x, y, barW, barH);
+        }
+        waveformAnimId = requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    function stopWaveform() {
+      if (waveformAnimId) {
+        cancelAnimationFrame(waveformAnimId);
+        waveformAnimId = null;
+      }
+    }
+
+    function setConvStatus(text, isResearching) {
+      const firecrawlIcon = convStatus.querySelector('.firecrawl-icon');
+      if (isResearching) {
+        convStatus.classList.add('researching');
+      } else {
+        convStatus.classList.remove('researching');
+      }
+      // Set text after the icon
+      convStatus.childNodes.forEach(n => {
+        if (n.nodeType === 3) n.textContent = '';
+      });
+      convStatus.appendChild(document.createTextNode(text));
+    }
+
+    async function startConversation() {
+      const Conversation = await loadElevenLabsSDK();
+      if (!Conversation) {
+        alert('Voice conversation is not available. Please try a modern browser.');
+        return;
+      }
+
+      setConvStatus('Connecting...', false);
+      askAnchorBtn.style.display = 'none';
+      featuredPlayBtn.style.display = 'none';
+      conversationLive.classList.add('visible');
+      startWaveform();
+
+      // Pause any playing audio
+      if (!audioEl.paused) audioEl.pause();
+
+      try {
+        // Request microphone access first
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // Get signed URL and per-style overrides from server
+        const res = await fetch('/api/agent/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ style: currentStyle.key, date: currentDate() }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Failed to start conversation');
+        }
+
+        const data = await res.json();
+        console.log('Agent start response:', data);
+
+        // Start ElevenLabs conversation session with per-style overrides
+        activeConversation = await Conversation.startSession({
+          signedUrl: data.signed_url,
+          overrides: data.overrides,
+          dynamicVariables: data.dynamic_variables,
+          onConnect: () => {
+            console.log('Conversation connected');
+            setConvStatus('Listening...', false);
+          },
+          onDisconnect: () => {
+            console.log('Conversation disconnected');
+            // Only end if we didn't already clean up
+            if (activeConversation) {
+              activeConversation = null;
+              stopWaveform();
+              conversationLive.classList.remove('visible');
+              askAnchorBtn.style.display = 'inline-flex';
+              featuredPlayBtn.style.display = 'flex';
+            }
+          },
+          onModeChange: (mode) => {
+            console.log('Mode change:', mode);
+            const m = typeof mode === 'string' ? mode : mode.mode;
+            if (m === 'speaking') {
+              setConvStatus('Speaking...', false);
+            } else if (m === 'listening') {
+              setConvStatus('Listening...', false);
+            }
+          },
+          onMessage: (msg) => {
+            console.log('Message:', msg);
+          },
+          onError: (error) => {
+            console.error('Conversation error:', error);
+            setConvStatus('Connection lost', false);
+            setTimeout(endConversation, 2000);
+          },
+        });
+        console.log('Conversation session started:', activeConversation);
+
+      } catch (e) {
+        console.error('Failed to start conversation:', e);
+
+        if (e.name === 'NotAllowedError' || (e.message && e.message.includes('permission'))) {
+          setConvStatus('Microphone access denied', false);
+        } else {
+          setConvStatus('Connection failed: ' + (e.message || 'Unknown error'), false);
+        }
+
+        setTimeout(endConversation, 3000);
+      }
+    }
+
+    function endConversation() {
+      if (activeConversation) {
+        try { activeConversation.endSession(); } catch (e) {}
+        activeConversation = null;
+      }
+      stopWaveform();
+      conversationLive.classList.remove('visible');
+      askAnchorBtn.style.display = 'inline-flex';
+      featuredPlayBtn.style.display = 'flex';
+    }
+
+    askAnchorBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startConversation();
+    });
+
+    endConvBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      endConversation();
+    });
+
+    // --- Rotating wireframe globe (only if video is NOT active) ---
+    (function() {
+      if (document.querySelector('.bg-globe.has-video')) return;
+
+      const canvas = document.getElementById('globeCanvas');
+      const ctx = canvas.getContext('2d');
+      const TILT = 22 * Math.PI / 180;
+      let rotation = 0;
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      function project(latDeg, lonDeg) {
+        const phi = latDeg * Math.PI / 180;
+        const lam = (lonDeg + rotation) * Math.PI / 180;
+        const cx = canvas.width / 2;
+        const cy = canvas.height * 0.42;
+        const r = Math.min(canvas.width, canvas.height) * 0.34;
+
+        const x = r * Math.cos(phi) * Math.sin(lam);
+        const y1 = r * Math.sin(phi);
+        const z1 = r * Math.cos(phi) * Math.cos(lam);
+
+        const y = y1 * Math.cos(TILT) - z1 * Math.sin(TILT);
+        const z = y1 * Math.sin(TILT) + z1 * Math.cos(TILT);
+
+        return { x: cx + x, y: cy - y, z: z };
+      }
+
+      function drawCurve(points, style) {
+        ctx.strokeStyle = style.color || 'rgba(80, 140, 220, 0.18)';
+        ctx.lineWidth = style.width || 0.8;
+        ctx.beginPath();
+        let drawing = false;
+        for (const p of points) {
+          if (p.z > 0) {
+            if (!drawing) { ctx.moveTo(p.x, p.y); drawing = true; }
+            else ctx.lineTo(p.x, p.y);
+          } else {
+            drawing = false;
+          }
+        }
+        ctx.stroke();
+      }
+
+      function draw() {
+        const w = canvas.width;
+        const h = canvas.height;
+        const cx = w / 2;
+        const cy = h * 0.42;
+        const r = Math.min(w, h) * 0.34;
+
+        ctx.clearRect(0, 0, w, h);
+
+        const atmoGrad = ctx.createRadialGradient(cx, cy, r * 0.8, cx, cy, r * 1.4);
+        atmoGrad.addColorStop(0, 'rgba(60, 120, 200, 0.06)');
+        atmoGrad.addColorStop(0.5, 'rgba(60, 120, 200, 0.02)');
+        atmoGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = atmoGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        const surfGrad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r);
+        surfGrad.addColorStop(0, 'rgba(40, 80, 160, 0.08)');
+        surfGrad.addColorStop(0.7, 'rgba(20, 40, 100, 0.04)');
+        surfGrad.addColorStop(1, 'rgba(10, 20, 60, 0.02)');
+        ctx.fillStyle = surfGrad;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(80, 140, 220, 0.15)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        const gridColor = 'rgba(80, 140, 220, 0.13)';
+        const eqColor = 'rgba(100, 160, 240, 0.22)';
+        for (let lat = -60; lat <= 60; lat += 30) {
+          const pts = [];
+          for (let lon = 0; lon <= 360; lon += 2) {
+            pts.push(project(lat, lon));
+          }
+          drawCurve(pts, {
+            color: lat === 0 ? eqColor : gridColor,
+            width: lat === 0 ? 1.0 : 0.6
+          });
+        }
+
+        for (let lon = 0; lon < 360; lon += 30) {
+          const pts = [];
+          for (let lat = -90; lat <= 90; lat += 2) {
+            pts.push(project(lat, lon));
+          }
+          drawCurve(pts, { color: gridColor, width: 0.6 });
+        }
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        const rimGrad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+        rimGrad.addColorStop(0, 'rgba(120, 180, 255, 0.08)');
+        rimGrad.addColorStop(0.5, 'transparent');
+        rimGrad.addColorStop(1, 'rgba(120, 180, 255, 0.04)');
+        ctx.strokeStyle = rimGrad;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        rotation += 0.04;
+        requestAnimationFrame(draw);
+      }
+
+      draw();
+    })();
+  </script>
+</body>
+</html>

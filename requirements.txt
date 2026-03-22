@@ -1,0 +1,6 @@
+firecrawl-py
+elevenlabs
+openai
+pydub
+python-dotenv
+flask

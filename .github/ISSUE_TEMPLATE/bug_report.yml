@@ -1,0 +1,48 @@
+name: Bug Report
+description: Report a bug in RetroCast
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: "When I click play on the BBC style, the loading spinner never stops..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      placeholder: "The broadcast should generate and start playing within a minute."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the app
+        2. Select BBC Television News
+        3. Click Play
+        4. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which part of RetroCast is affected?
+      options:
+        - Audio generation
+        - Web UI / player
+        - Ask the Anchor (live conversation)
+        - Setup / installation
+        - Server / API
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and Python version
+      placeholder: "macOS 15.3, Python 3.12.1"
