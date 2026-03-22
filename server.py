@@ -350,8 +350,7 @@ AGENT_WEBHOOK_SECRET = os.environ.get("AGENT_WEBHOOK_SECRET", "")
 def _validate_webhook_secret():
     """Validate the X-Agent-Secret header on webhook requests."""
     if not AGENT_WEBHOOK_SECRET:
-        print("[webhook] REJECTED — AGENT_WEBHOOK_SECRET not configured")
-        return False
+        return True  # No secret configured, allow all (development mode)
     header = request.headers.get("X-Agent-Secret", "")
     valid = hmac.compare_digest(header, AGENT_WEBHOOK_SECRET)
     if not valid:
