@@ -1626,6 +1626,40 @@
       }
     }
 
+    // --- Phone ringing SFX (synthesised via Web Audio API, no external files) ---
+    const ringingSfx = (() => {
+      let ctx, osc1, osc2, gain, active = false;
+      function start() {
+        if (active) return;
+        active = true;
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        gain = ctx.createGain();
+        gain.gain.value = 0;
+        gain.connect(ctx.destination);
+        // Classic phone ring: two tones (~440 Hz + ~480 Hz)
+        osc1 = ctx.createOscillator(); osc1.frequency.value = 440; osc1.type = 'sine';
+        osc2 = ctx.createOscillator(); osc2.frequency.value = 480; osc2.type = 'sine';
+        osc1.connect(gain); osc2.connect(gain);
+        osc1.start(); osc2.start();
+        // Ring pattern: 2 s on, 4 s off (US-style cadence)
+        function cycle() {
+          if (!active) return;
+          gain.gain.setValueAtTime(0.18, ctx.currentTime);
+          gain.gain.setValueAtTime(0, ctx.currentTime + 2);
+          setTimeout(() => cycle(), 6000);
+        }
+        cycle();
+      }
+      function stop() {
+        if (!active) return;
+        active = false;
+        try { osc1.stop(); } catch {}
+        try { osc2.stop(); } catch {}
+        try { ctx.close(); } catch {}
+      }
+      return { start, stop };
+    })();
+
     function setConvStatus(text, isResearching) {
       const firecrawlIcon = convStatus.querySelector('.firecrawl-icon');
       if (isResearching) {
@@ -1647,7 +1681,8 @@
         return;
       }
 
-      setConvStatus('Connecting...', false);
+      setConvStatus('Ringing...', false);
+      ringingSfx.start();
       askAnchorBtn.style.display = 'none';
       featuredPlayBtn.style.display = 'none';
       conversationLive.classList.add('visible');
@@ -1699,9 +1734,11 @@
           dynamicVariables: data.dynamic_variables,
           onConnect: () => {
             console.log('Conversation connected');
+            ringingSfx.stop();
             setConvStatus('Listening...', false);
           },
           onDisconnect: (details) => {
+            ringingSfx.stop();
             const reason = details?.reason || 'unknown';
             const code = details?.code || '';
             console.log('Conversation disconnected:', { reason, code, details });
@@ -1752,6 +1789,7 @@
         console.log('Conversation session started:', activeConversation);
 
       } catch (e) {
+        ringingSfx.stop();
         console.error('Failed to start conversation:', e);
 
         if (e.name === 'NotAllowedError' || (e.message && e.message.includes('permission'))) {
@@ -1766,6 +1804,7 @@
     }
 
     function endConversation() {
+      ringingSfx.stop();
       if (activeConversation) {
         try { activeConversation.endSession(); } catch (e) {}
         activeConversation = null;
