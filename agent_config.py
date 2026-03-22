@@ -329,7 +329,7 @@ def _create_tools(client, base_url: str) -> list:
                         method="POST",
                         request_headers={
                             "X-Agent-Secret": secret,
-                        } if secret else None,
+                        } if secret else {},
                         request_body_schema={
                             "type": "object",
                             "properties": td["properties"],
@@ -496,7 +496,7 @@ def build_tool_definitions(base_url: str) -> list:
                 method="POST",
                 request_headers={
                     "X-Agent-Secret": secret,
-                } if secret else None,
+                } if secret else {},
                 request_body_schema={
                     "type": "object",
                     "properties": properties,
@@ -624,7 +624,7 @@ def _build_output_tools(base_url: str) -> list:
                 method="POST",
                 request_headers={
                     "X-Agent-Secret": secret,
-                } if secret else None,
+                } if secret else {},
                 request_body_schema={
                     "type": "object",
                     "properties": properties,
@@ -796,7 +796,7 @@ def configure_agent_webhooks(base_url: str, agent_id: str = ""):
                         method="POST",
                         request_headers={
                             "X-Agent-Secret": secret,
-                        } if secret else None,
+                        } if secret else {},
                         request_body_schema={
                             "type": "object",
                             "properties": td["properties"],
