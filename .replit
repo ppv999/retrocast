@@ -35,4 +35,8 @@ outputType = "webview"
 
 [nix]
 channel = "stable-25_05"
-packages = ["ffmpeg-full", "ffmpeg"]
+packages = ["ffmpeg", "ffmpeg-full"]
+
+[agent]
+expertMode = true
+integrations = ["javascript_object_storage:2.0.0"]

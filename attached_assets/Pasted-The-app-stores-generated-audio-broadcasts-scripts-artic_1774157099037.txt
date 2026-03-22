@@ -1,0 +1,49 @@
+The app stores generated audio broadcasts, scripts, articles, and a manifest as local files under `web/audio/`. This breaks on Autoscale deployments because the filesystem is ephemeral. Migrate all generated file storage to Replit Object
+  Storage so files persist across deploys.
+
+  Here's exactly what needs to change:
+
+  ## 1. Install the Replit Object Storage SDK
+  Add `replit-object-storage` to requirements.txt
+
+  ## 2. In server.py, create a storage helper near the top (after imports)
+  Create these helper functions that use Replit Object Storage:
+  - `_storage_put(key, data)` — upload bytes/string to object storage
+  - `_storage_get(key)` — download from object storage, return bytes (or None if not found)
+  - `_storage_exists(key)` — check if key exists in object storage
+  All keys should be prefixed with "audio/" (e.g., "audio/manifest.json", "audio/2026-03-22/us_network.mp3")
+
+  ## 3. Replace these specific file operations in server.py:
+
+  ### Manifest (currently lines 75-85):
+  - `_load_manifest()` currently reads from `web/audio/manifest.json` on disk → read from object storage key `audio/manifest.json`
+  - `_save_manifest()` currently writes to `web/audio/manifest.json` on disk → write to object storage key `audio/manifest.json`
+
+  ### Generation function `_generate_style()` (currently lines 131-208):
+  - Line 136: `os.makedirs(date_dir)` → remove (no directories in object storage)
+  - Line 139: `os.path.exists(out_path)` → use `_storage_exists(f"audio/{date_str}/{style_key}.mp3")`
+  - Lines 155-156: writing articles JSON → use `_storage_put(f"audio/{date_str}/{style_key}_articles.json", json.dumps(news, indent=2))`
+  - Lines 167-168: writing script TXT → use `_storage_put(f"audio/{date_str}/{style_key}_script.txt", script)`
+  - Lines 173-174: writing audio MP3 → use `_storage_put(f"audio/{date_str}/{style_key}.mp3", audio)`
+
+  ### Audio serving route at `GET /audio/<path:filepath>` (currently line 225):
+  - Currently uses `send_from_directory` → fetch from object storage and return with correct MIME type (audio/mpeg for .mp3, application/json for .json)
+
+  ### Audio existence checks (lines 241, 257):
+  - `os.path.exists(audio_path)` → use `_storage_exists(f"audio/{date}/{style}.mp3")`
+
+  ### Agent context reads (around lines 476-483):
+  - Reading script TXT and articles JSON → use `_storage_get()`
+
+  ### Startup health check (line 527):
+  - `os.makedirs(AUDIO_DIR, exist_ok=True)` → remove or replace with a simple object storage connectivity check
+
+  ## 4. Do NOT change:
+  - Static file serving (index.html, globe.mp4, favicon.svg) — these stay local from the `web/` folder
+  - The `assets/` folder (intro/outro MP3s) — these are bundled in the repo
+  - `retrocast.py` — the standalone script is not affected
+  - The frontend `web/index.html` — audio URLs are relative and served through Flask routes, no changes needed
+
+  ## 5. Test:
+  - Run the app, generate a broadcast, confirm audio plays
+  - Stop and restart the app, confirm the previously generated broadcast is still available

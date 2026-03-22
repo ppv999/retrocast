@@ -13,6 +13,8 @@ from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
+from replit.object_storage import Client as _ObjClient
+from replit.object_storage.errors import ObjectNotFoundError as _ObjNotFound
 
 load_dotenv()
 
@@ -21,8 +23,30 @@ from retrocast import STYLES, fetch_news, generate_audio, generate_script, verif
 app = Flask(__name__, static_folder="web")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-AUDIO_DIR = os.path.join(BASE_DIR, "web", "audio")
-MANIFEST_PATH = os.path.join(AUDIO_DIR, "manifest.json")
+
+_store = _ObjClient(bucket_id=os.environ.get("DEFAULT_OBJECT_STORAGE_BUCKET_ID"))
+
+
+def _storage_put(key: str, data):
+    """Upload bytes or string to object storage."""
+    if isinstance(data, (bytes, bytearray)):
+        _store.upload_from_bytes(key, data)
+    else:
+        _store.upload_from_text(key, data)
+
+
+def _storage_get(key: str):
+    """Download object as bytes, or None if not found."""
+    try:
+        return _store.download_as_bytes(key)
+    except _ObjNotFound:
+        return None
+
+
+def _storage_exists(key: str) -> bool:
+    """Return True if the key exists in object storage."""
+    return _store.exists(key)
+
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -73,16 +97,14 @@ def _today_str() -> str:
 
 
 def _load_manifest() -> dict:
-    if os.path.exists(MANIFEST_PATH):
-        with open(MANIFEST_PATH) as f:
-            return json.load(f)
+    data = _storage_get("audio/manifest.json")
+    if data is not None:
+        return json.loads(data)
     return {"dates": {}, "styles": {}}
 
 
 def _save_manifest(manifest: dict):
-    os.makedirs(os.path.dirname(MANIFEST_PATH), exist_ok=True)
-    with open(MANIFEST_PATH, "w") as f:
-        json.dump(manifest, f, indent=2)
+    _storage_put("audio/manifest.json", json.dumps(manifest, indent=2))
 
 
 def _get_news_cached(style_key: str) -> dict:
@@ -132,11 +154,9 @@ def _generate_style(date_str: str, style_key: str):
     """Generate audio for a style on a given date. Runs in a background thread."""
     try:
         style = STYLES[style_key]
-        date_dir = os.path.join(AUDIO_DIR, date_str)
-        os.makedirs(date_dir, exist_ok=True)
 
-        out_path = os.path.join(date_dir, f"{style_key}.mp3")
-        if os.path.exists(out_path):
+        audio_key = f"audio/{date_str}/{style_key}.mp3"
+        if _storage_exists(audio_key):
             return  # Already exists
 
         print(f"[server] Generating {style_key} for {date_str}...")
@@ -151,9 +171,7 @@ def _generate_style(date_str: str, style_key: str):
             return
 
         # Save articles for agent context
-        articles_path = os.path.join(date_dir, f"{style_key}_articles.json")
-        with open(articles_path, "w") as f:
-            json.dump(news, f, indent=2)
+        _storage_put(f"audio/{date_str}/{style_key}_articles.json", json.dumps(news, indent=2))
 
         # Verify news claims (Fake News Buster) — cached per geo+date
         _gen_progress[style_key] = "Verifying facts with Firecrawl"
@@ -163,16 +181,13 @@ def _generate_style(date_str: str, style_key: str):
         script = generate_script(news, style_key, verification=verification)
 
         # Save script for agent context
-        script_path = os.path.join(date_dir, f"{style_key}_script.txt")
-        with open(script_path, "w") as f:
-            f.write(script)
+        _storage_put(f"audio/{date_str}/{style_key}_script.txt", script)
 
         _gen_progress[style_key] = "Generating audio with ElevenLabs"
         audio = generate_audio(script, style_key)
 
-        with open(out_path, "wb") as f:
-            f.write(audio)
-        print(f"[server] Saved {out_path} ({len(audio):,} bytes)")
+        _storage_put(audio_key, audio)
+        print(f"[server] Saved {audio_key} ({len(audio):,} bytes)")
 
         # Update manifest (locked to prevent concurrent clobbering)
         with _manifest_lock:
@@ -220,9 +235,19 @@ def index():
 
 @app.route("/audio/<path:filepath>")
 def serve_audio(filepath):
-    if not filepath.endswith(".mp3"):
+    if filepath.endswith(".mp3"):
+        mime = "audio/mpeg"
+    elif filepath.endswith(".json"):
+        mime = "application/json"
+    else:
         return jsonify({"error": "Not found"}), 404
-    return send_from_directory(AUDIO_DIR, filepath)
+
+    data = _storage_get(f"audio/{filepath}")
+    if data is None:
+        return jsonify({"error": "Not found"}), 404
+
+    from flask import Response
+    return Response(data, mimetype=mime)
 
 
 @app.route("/api/manifest")
@@ -237,8 +262,7 @@ def api_status(date, style):
     if style not in STYLES:
         return jsonify({"error": "Unknown style"}), 404
 
-    audio_path = os.path.join(AUDIO_DIR, date, f"{style}.mp3")
-    exists = os.path.exists(audio_path)
+    exists = _storage_exists(f"audio/{date}/{style}.mp3")
     step = _gen_progress.get(style, "")
     error = _gen_errors.get(style, "")
     return jsonify({"date": date, "style": style, "ready": exists, "step": step, "error": error})
@@ -253,8 +277,7 @@ def api_generate(date, style):
     if style not in STYLES:
         return jsonify({"error": "Unknown style"}), 404
 
-    audio_path = os.path.join(AUDIO_DIR, date, f"{style}.mp3")
-    if os.path.exists(audio_path):
+    if _storage_exists(f"audio/{date}/{style}.mp3"):
         return jsonify({"status": "ready"})
 
     lock = _gen_locks.get(style)
@@ -468,25 +491,22 @@ def api_agent_start():
         agent_id = get_or_create_agent(style_key, base_url)
 
         # Load broadcast context if available
-        date_dir = os.path.join(AUDIO_DIR, date_str)
         broadcast_context = ""
 
-        script_path = os.path.join(date_dir, f"{style_key}_script.txt")
-        if os.path.exists(script_path):
-            with open(script_path) as f:
-                script_text = f.read()
-                broadcast_context += f"\nToday's broadcast script:\n{script_text}\n"
+        script_data = _storage_get(f"audio/{date_str}/{style_key}_script.txt")
+        if script_data is not None:
+            script_text = script_data.decode("utf-8")
+            broadcast_context += f"\nToday's broadcast script:\n{script_text}\n"
 
-        articles_path = os.path.join(date_dir, f"{style_key}_articles.json")
-        if os.path.exists(articles_path):
-            with open(articles_path) as f:
-                articles = json.load(f)
-                parts = []
-                for category, items in articles.items():
-                    for item in items:
-                        parts.append(f"- {item.get('title', '')}: {item.get('snippet', '')[:100]}")
-                if parts:
-                    broadcast_context += f"\nSource articles:\n" + "\n".join(parts[:15])
+        articles_data = _storage_get(f"audio/{date_str}/{style_key}_articles.json")
+        if articles_data is not None:
+            articles = json.loads(articles_data)
+            parts = []
+            for category, items in articles.items():
+                for item in items:
+                    parts.append(f"- {item.get('title', '')}: {item.get('snippet', '')[:100]}")
+            if parts:
+                broadcast_context += f"\nSource articles:\n" + "\n".join(parts[:15])
 
         # Get signed URL for the conversation
         client = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
@@ -524,8 +544,6 @@ def serve_static(filepath):
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    os.makedirs(AUDIO_DIR, exist_ok=True)
-
     # Startup health check — warn about missing keys but still start
     _required = {
         "FIRECRAWL_API_KEY": "news fetching",

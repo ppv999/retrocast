@@ -4,9 +4,4 @@ openai
 pydub
 python-dotenv
 flask
-elevenlabs
-firecrawl-py
-flask
-openai
-pydub
-python-dotenv
+replit-object-storage
