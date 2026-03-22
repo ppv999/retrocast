@@ -198,13 +198,17 @@ def get_style_overrides(style_key: str) -> dict:
     else:
         print(f"[agent_config] Prompt override for {style_key}: {prompt_len} chars (OK)")
 
-    # The ElevenLabs JS SDK startSession() expects a flat override format:
-    #   agent.prompt  → string (NOT the nested {prompt: "..."} used by the REST API)
-    #   agent.first_message → string
-    #   tts.voice_id → string
+    # The ElevenLabs JS SDK startSession() expects camelCase overrides:
+    #   agent.prompt.prompt → string (nested object, SDK passes through as-is)
+    #   agent.firstMessage  → string (SDK converts to first_message on wire)
+    #   tts.voiceId         → string (SDK converts to voice_id on wire)
+    # Our server sends snake_case; the frontend's snakeToCamel() handles conversion.
+    # The agent must also have overrides ENABLED in platform_settings.
     result = {
         "agent": {
-            "prompt": prompt,
+            "prompt": {
+                "prompt": prompt,
+            },
             "first_message": char["first_message"],
             "language": char["language"],
         },
@@ -337,6 +341,41 @@ def _create_tools(client, base_url: str) -> list:
     return tool_ids
 
 
+def _enable_agent_overrides(client, agent_id: str):
+    """Enable session-time overrides for prompt, first_message, language, and voice.
+
+    Without this, the ElevenLabs WebSocket rejects any override payload and
+    immediately disconnects the session.
+    """
+    import requests
+
+    api_key = os.environ["ELEVENLABS_API_KEY"]
+    resp = requests.patch(
+        f"https://api.elevenlabs.io/v1/convai/agents/{agent_id}",
+        headers={"xi-api-key": api_key, "Content-Type": "application/json"},
+        json={
+            "platform_settings": {
+                "overrides": {
+                    "conversation_config_override": {
+                        "agent": {
+                            "first_message": True,
+                            "language": True,
+                            "prompt": {"prompt": True},
+                        },
+                        "tts": {
+                            "voice_id": True,
+                        },
+                    }
+                }
+            }
+        },
+    )
+    if resp.ok:
+        print(f"    [agent] Overrides enabled for {agent_id}")
+    else:
+        print(f"    [agent] WARNING: Failed to enable overrides for {agent_id}: {resp.status_code} {resp.text}")
+
+
 def _create_agent(client, style_key: str) -> str:
     """Create a single ElevenLabs Conversational AI agent for a style.
 
@@ -383,6 +422,10 @@ def _create_agent(client, style_key: str) -> str:
         ),
     )
     print(f"    [agent] Agent created: {agent.agent_id}")
+
+    # Enable session-time overrides so the frontend can customize per style
+    _enable_agent_overrides(client, agent.agent_id)
+
     return agent.agent_id
 
 
