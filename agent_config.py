@@ -252,6 +252,10 @@ def _create_agent(client, style_key: str) -> str:
     style = STYLES[style_key]
     char = STYLE_CHARACTERS[style_key]
     prompt = build_agent_prompt(style_key)
+    lang = char["language"]
+    # ElevenLabs requires different model families per language group:
+    # English → eleven_turbo_v2, non-English → eleven_turbo_v2_5
+    tts_model = "eleven_turbo_v2" if lang == "en" else "eleven_turbo_v2_5"
 
     agent = client.conversational_ai.agents.create(
         name=f"{AGENT_NAME_PREFIX}{style_key}",
@@ -262,10 +266,11 @@ def _create_agent(client, style_key: str) -> str:
                     llm="gpt-4o",
                 ),
                 first_message=char["first_message"],
-                language=char["language"],
+                language=lang,
             ),
             tts=TtsConversationalConfigOutput(
                 voice_id=style["default_voice"],
+                model_id=tts_model,
             ),
         ),
     )
