@@ -879,6 +879,39 @@
 </head>
 <body>
 
+  <!-- Quota exhaustion banner (hidden by default) -->
+  <div id="quotaBanner" style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: linear-gradient(135deg, #b91c1c, #991b1b);
+    color: #fff;
+    text-align: center;
+    padding: 12px 48px 12px 20px;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  ">
+    <span id="quotaBannerText">Audio service credits exhausted. Broadcasts and dial-in are temporarily unavailable.</span>
+    <button onclick="document.getElementById('quotaBanner').style.display='none'" style="
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      opacity: 0.8;
+    ">&times;</button>
+  </div>
+
   <!-- Globe background -->
   <div class="bg-globe has-video">
     <canvas id="globeCanvas"></canvas>
@@ -1372,6 +1405,9 @@
                 hideLoading();
                 featuredLoading.classList.add('visible');
                 featuredLoading.textContent = statusData.error + '. Click play to retry.';
+                if (/quota|credit|exhausted/i.test(statusData.error)) {
+                  showQuotaBanner(statusData.error);
+                }
               } else if (statusData.step) {
                 featuredLoading.textContent = statusData.step + '...';
               }
@@ -1574,6 +1610,14 @@
       }
     }
 
+    function showQuotaBanner(msg) {
+      const banner = document.getElementById('quotaBanner');
+      if (banner) {
+        if (msg) document.getElementById('quotaBannerText').textContent = msg;
+        banner.style.display = 'block';
+      }
+    }
+
     function setConvStatus(text, isResearching) {
       const firecrawlIcon = convStatus.querySelector('.firecrawl-icon');
       if (isResearching) {
@@ -1617,7 +1661,11 @@
 
         if (!res.ok) {
           const err = await res.json();
-          throw new Error(err.error || 'Failed to start conversation');
+          const errMsg = err.error || 'Failed to start conversation';
+          if (/quota|credit|exhausted/i.test(errMsg)) {
+            showQuotaBanner();
+          }
+          throw new Error(errMsg);
         }
 
         const data = await res.json();
@@ -1632,8 +1680,18 @@
             console.log('Conversation connected');
             setConvStatus('Listening...', false);
           },
-          onDisconnect: () => {
-            console.log('Conversation disconnected');
+          onDisconnect: (details) => {
+            console.log('Conversation disconnected:', details);
+            // Surface quota/credit exhaustion to the user
+            const reason = details?.reason || '';
+            const code = details?.code || '';
+            const isQuota = /quota|credit|limit|insufficient|402/i.test(
+              `${reason} ${code} ${JSON.stringify(details)}`
+            );
+            if (isQuota) {
+              setConvStatus('Service temporarily unavailable (quota)', false);
+              showQuotaBanner();
+            }
             // Only end if we didn't already clean up
             if (activeConversation) {
               activeConversation = null;

@@ -252,7 +252,11 @@ def _generate_style(date_str: str, style_key: str):
 
     except Exception as e:
         _gen_progress.pop(style_key, None)
-        _gen_errors[style_key] = "Generation failed"
+        err_str = str(e).lower()
+        if "quota" in err_str or "credit" in err_str or "402" in err_str or "insufficient" in err_str:
+            _gen_errors[style_key] = "Audio quota exhausted — please top up ElevenLabs credits"
+        else:
+            _gen_errors[style_key] = "Generation failed"
         print(f"[server] ERROR generating {style_key}: {e}")
 
 
@@ -535,6 +539,20 @@ def api_agent_start():
 
     try:
         print(f"[agent] Starting session for style={style_key!r} date={date_str!r}")
+
+        # Pre-check ElevenLabs subscription quota
+        client = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
+        try:
+            sub = client.user.get_subscription()
+            remaining = sub.character_limit - sub.character_count
+            print(f"[agent] ElevenLabs quota: {sub.character_count}/{sub.character_limit} used ({remaining} remaining)")
+            if remaining <= 0:
+                print(f"[agent] BLOCKED — ElevenLabs character quota exhausted")
+                return jsonify({"error": "Service temporarily unavailable — audio quota exhausted. Please try again later."}), 503
+        except Exception as quota_err:
+            print(f"[agent] WARNING: Could not check ElevenLabs quota: {quota_err}")
+            # Continue anyway — the signed URL request will fail if truly exhausted
+
         agent_id = get_agent_id(style_key)
         if not agent_id:
             print(f"[agent] No agent_id found for style={style_key!r}")
@@ -560,7 +578,6 @@ def api_agent_start():
                 broadcast_context += f"\nSource articles:\n" + "\n".join(parts[:15])
 
         # Get signed URL for the conversation
-        client = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
         signed_url_response = client.conversational_ai.conversations.get_signed_url(
             agent_id=agent_id
         )
@@ -577,6 +594,10 @@ def api_agent_start():
         })
 
     except Exception as e:
+        err_str = str(e).lower()
+        if "quota" in err_str or "credit" in err_str or "402" in err_str or "insufficient" in err_str:
+            print(f"[server] ERROR starting agent (quota): {e}")
+            return jsonify({"error": "Service temporarily unavailable — audio quota exhausted. Please try again later."}), 503
         print(f"[server] ERROR starting agent: {e}")
         return jsonify({"error": "Failed to start agent session"}), 500
 
