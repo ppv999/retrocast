@@ -1,5 +1,6 @@
 run = "python server.py"
 entrypoint = "server.py"
+modules = ["nodejs-20", "python-3.11"]
 
 [env]
 PYTHONUNBUFFERED = "1"
@@ -7,3 +8,31 @@ PYTHONUNBUFFERED = "1"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python server.py"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[nix]
+channel = "stable-25_05"
+packages = ["ffmpeg-full", "ffmpeg"]
