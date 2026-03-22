@@ -138,6 +138,9 @@ STYLE GUIDELINES:
 - The news articles are in English — translate and present them in Hindi
 - Target approximately 400-450 words for a 3 minute broadcast
 - 5-7 stories total (not per category), 1-2 sentences per story
+- Before the final sign-off, one anchor must include this dial-in invitation \
+(naturally, in character): "यदि आप हमसे जुड़ना चाहें तो प्रसारण के बाद आप हमारे \
+स्टूडियो से सीधे बात कर सकते हैं।"
 
 EDITORIAL PRIORITIES — YOU ARE THE NEWS EDITOR:
 You have all of today's news in front of you. You must pick 6-7 stories and order them \
@@ -217,6 +220,9 @@ STYLE GUIDELINES — 1980s Indian government radio:
 - This is the voice of a nation — authoritative, trustworthy, unwavering
 - Target approximately 400-450 words for a 3 minute bulletin
 - 5-7 stories total (not per category), 1-2 sentences per story
+- Before the closing "ये समाचार थे", include this dial-in invitation \
+(naturally, in character): "प्रसारण के बाद आप हमारे स्टूडियो से जुड़ सकते हैं \
+और अपने प्रश्न रख सकते हैं।"
 
 EDITORIAL PRIORITIES — YOU ARE THE NEWS EDITOR:
 You have all of today's news in front of you. You must pick 5-8 stories and order them \
@@ -280,7 +286,10 @@ oddity. Introduce with "[pause] [warmly] And finally,"
 5. RECAP — "[pause] [measured] The main points again." Repeat each headline \
 in one sentence.
 
-6. CLOSING — "[pause] And that's the end of the news."
+6. DIAL-IN INVITATION — Before the closing, include naturally: \
+"After this bulletin, you may ring in and put your questions directly to the newsroom."
+
+7. CLOSING — "[pause] And that's the end of the news."
 
 STYLE GUIDELINES — British international bulletin, late 1980s:
 - Received Pronunciation — formal, precise, clipped diction
@@ -367,7 +376,10 @@ with fictional names: "Our correspondent [fictional name] reports from [city] th
    Linda: "Thanks, Robert. [measured] In other news today..."
    — or simply take turns. Keep transitions brief and natural.
 
-5. CLOSING:
+5. DIAL-IN INVITATION — One host invites listeners naturally before the sign-off: \
+"If you'd like to talk to us about any of tonight's stories, give us a ring."
+
+6. CLOSING:
    Robert: "[warmly] I'm Robert."
    Linda: "[warmly] And I'm Linda. Thanks for listening."
 
@@ -445,7 +457,10 @@ oddity. Introduce with "[pause] [warmly] And finally,"
 6. RECAP — "[pause] [measured] The main points again." Repeat each headline \
 in one sentence.
 
-7. CLOSING — "[pause] [warmly] Good night."
+7. DIAL-IN INVITATION — Before the closing, include naturally: \
+"After the news, you're welcome to ring in to the studio with your questions."
+
+8. CLOSING — "[pause] [warmly] Good night."
 
 STYLE GUIDELINES — BBC Television News, 1980s:
 - Warm Received Pronunciation — authoritative but with personality
@@ -510,7 +525,11 @@ Use correspondent references with fictional names.
 3. KICKER — The final story is lighter. A human moment, a scientific \
 curiosity, something to end the broadcast on. Brief warmth.
 
-4. SIGN-OFF: "[pause] [warmly] And that's the way it is, [full date \
+4. DIAL-IN INVITATION — Before the sign-off, include naturally: \
+"If you'd like to reach the evening news with a question, the studio lines are open \
+after this broadcast."
+
+5. SIGN-OFF: "[pause] [warmly] And that's the way it is, [full date \
 written out]. Good night."
 
 STYLE GUIDELINES — 1970s American network evening news:
@@ -580,7 +599,10 @@ banter — each reads their assigned stories independently.
    - General news
    - Sports (always present — football dominates)
 
-3. CLOSING:
+3. DIAL-IN INVITATION — Before the closing, one anchor includes naturally: \
+"Após o jornal, você pode ligar para a redação e conversar diretamente conosco."
+
+4. CLOSING:
    Marcos: "[warmly] Boa noite."
    Carlos: "[warmly] Boa noite."
 
@@ -647,7 +669,10 @@ crisp sentence. [pause] between each. Punchy, direct, no adjectives.
 in 2-3 sentences. Dry, direct, factual. ALWAYS cite sources: "segundo \
 fontes oficiais", "de acordo com o governo", "conforme agências internacionais".
 
-4. CLOSING: "[pause] Estas foram as principais notícias desta hora. \
+4. DIAL-IN INVITATION — Before the closing, include naturally: \
+"Após este boletim, o ouvinte pode ligar para o estúdio e conversar com o Repórter."
+
+5. CLOSING: "[pause] Estas foram as principais notícias desta hora. \
 O Repórter volta na próxima edição. Boa noite."
 
 STYLE GUIDELINES — Brazilian commercial radio, 1960s:
@@ -1107,8 +1132,59 @@ def generate_script(
 
     news_content = "\n".join(content_parts)
 
-    # Build verification segment instruction if any stories were flagged
+    # Build verification segment instruction
     verification_addendum = ""
+    lang = style.get("lang", "English")
+
+    VERIF_LANG = {
+        "English": {
+            "segment_name": "verification note",
+            "intro_phrase": "Before we close, a note on accuracy",
+            "clean_note": (
+                "Before signing off, include one brief sentence noting that today's "
+                "stories have been independently verified for accuracy using Firecrawl "
+                "technology. Keep it natural and in character — no more than one line."
+            ),
+            "firecrawl_line": (
+                "Mention briefly that this broadcast uses Firecrawl technology to "
+                "independently cross-check the news, helping ensure no fake "
+                "or misleading news reaches listeners. Keep it to one natural line."
+            ),
+        },
+        "Hindi": {
+            "segment_name": "सत्यापन टिप्पणी (verification note)",
+            "intro_phrase": "समापन से पहले, सटीकता पर एक टिप्पणी",
+            "clean_note": (
+                "समापन से पहले, एक संक्षिप्त वाक्य में बताएं कि आज के सभी "
+                "समाचारों की Firecrawl तकनीक से स्वतंत्र रूप से सत्यता जाँच की गई है। "
+                "स्वाभाविक रहें — एक पंक्ति से अधिक नहीं।"
+            ),
+            "firecrawl_line": (
+                "बताएं कि यह बुलेटिन Firecrawl तकनीक का उपयोग करके "
+                "समाचारों की स्वतंत्र रूप से जाँच करता है, "
+                "जिससे कोई भी फर्जी या भ्रामक समाचार प्रसारित न हो। "
+                "एक स्वाभाविक वाक्य में कहें।"
+            ),
+        },
+        "Portuguese": {
+            "segment_name": "nota de verificação",
+            "intro_phrase": "Antes de encerrar, uma nota sobre a precisão",
+            "clean_note": (
+                "Antes de encerrar, inclua uma breve frase mencionando que as "
+                "notícias de hoje foram verificadas de forma independente com a "
+                "tecnologia Firecrawl. Mantenha natural e em personagem — no máximo uma linha."
+            ),
+            "firecrawl_line": (
+                "Mencione que esta transmissão utiliza a tecnologia Firecrawl "
+                "para verificar independentemente as notícias, ajudando a "
+                "garantir que nenhuma notícia falsa ou enganosa seja reportada. "
+                "Diga isso em uma frase natural."
+            ),
+        },
+    }
+
+    vlang = VERIF_LANG.get(lang, VERIF_LANG["English"])
+
     if verification and verification.get("flagged"):
         flagged_items = []
         for item in verification["flagged"]:
@@ -1116,42 +1192,6 @@ def generate_script(
                 f"- \"{item['title']}\": {item.get('flag_reason', 'Potentially misleading')}"
             )
         flagged_text = "\n".join(flagged_items)
-
-        lang = style.get("lang", "English")
-
-        VERIF_LANG = {
-            "English": {
-                "segment_name": "verification note",
-                "intro_phrase": "Before we close, a note on accuracy",
-                "firecrawl_line": (
-                    "Mention briefly that this broadcast uses Firecrawl technology to "
-                    "independently cross-check the news, helping ensure no fake "
-                    "or misleading news reaches listeners. Keep it to one natural line."
-                ),
-            },
-            "Hindi": {
-                "segment_name": "सत्यापन टिप्पणी (verification note)",
-                "intro_phrase": "समापन से पहले, सटीकता पर एक टिप्पणी",
-                "firecrawl_line": (
-                    "बताएं कि यह बुलेटिन Firecrawl तकनीक का उपयोग करके "
-                    "समाचारों की स्वतंत्र रूप से जाँच करता है, "
-                    "जिससे कोई भी फर्जी या भ्रामक समाचार प्रसारित न हो। "
-                    "एक स्वाभाविक वाक्य में कहें।"
-                ),
-            },
-            "Portuguese": {
-                "segment_name": "nota de verificação",
-                "intro_phrase": "Antes de encerrar, uma nota sobre a precisão",
-                "firecrawl_line": (
-                    "Mencione que esta transmissão utiliza a tecnologia Firecrawl "
-                    "para verificar independentemente as notícias, ajudando a "
-                    "garantir que nenhuma notícia falsa ou enganosa seja reportada. "
-                    "Diga isso em uma frase natural."
-                ),
-            },
-        }
-
-        vlang = VERIF_LANG.get(lang, VERIF_LANG["English"])
 
         verification_addendum = (
             f"\n\nVERIFICATION SEGMENT (MANDATORY):\n"
@@ -1163,6 +1203,14 @@ def generate_script(
             f"IMPORTANT: Do NOT use the English words 'fact check' or 'fact-checking' — "
             f"use the natural equivalent in {lang}.\n\n"
             f"FLAGGED STORIES:\n{flagged_text}"
+        )
+    elif verification:
+        # Nothing flagged — still include a brief "verified" note
+        verification_addendum = (
+            f"\n\nVERIFICATION NOTE (MANDATORY):\n"
+            f"{vlang['clean_note']}\n"
+            f"IMPORTANT: Do NOT use the English words 'fact check' or 'fact-checking' — "
+            f"use the natural equivalent in {lang}."
         )
 
     system_prompt = style["prompt"]
