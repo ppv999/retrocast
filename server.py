@@ -13,8 +13,6 @@ from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
-from replit.object_storage import Client as _ObjClient
-from replit.object_storage.errors import ObjectNotFoundError as _ObjNotFound
 
 load_dotenv()
 
@@ -24,28 +22,63 @@ app = Flask(__name__, static_folder="web")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-_store = _ObjClient(bucket_id=os.environ.get("DEFAULT_OBJECT_STORAGE_BUCKET_ID"))
+# ---------------------------------------------------------------------------
+# Storage layer: Replit Object Storage on Replit, local filesystem elsewhere
+# ---------------------------------------------------------------------------
+
+_ON_REPLIT = bool(os.environ.get("REPL_ID"))
+
+if _ON_REPLIT:
+    from replit.object_storage import Client as _ObjClient
+    from replit.object_storage.errors import ObjectNotFoundError as _ObjNotFound
+    _store = _ObjClient(bucket_id=os.environ.get("DEFAULT_OBJECT_STORAGE_BUCKET_ID"))
+
+# Local fallback: keys are "audio/<rest>", stored under <project>/audio/<rest>
+_LOCAL_AUDIO_DIR = os.path.join(BASE_DIR, "audio")
+
+
+def _key_to_local_path(key: str) -> str:
+    """Map an object-storage key to a local filesystem path."""
+    relative = key[len("audio/"):] if key.startswith("audio/") else key
+    return os.path.join(_LOCAL_AUDIO_DIR, relative)
 
 
 def _storage_put(key: str, data):
-    """Upload bytes or string to object storage."""
-    if isinstance(data, (bytes, bytearray)):
-        _store.upload_from_bytes(key, data)
+    """Write bytes or string — object storage on Replit, local file otherwise."""
+    if _ON_REPLIT:
+        if isinstance(data, (bytes, bytearray)):
+            _store.upload_from_bytes(key, data)
+        else:
+            _store.upload_from_text(key, data)
     else:
-        _store.upload_from_text(key, data)
+        path = _key_to_local_path(key)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        mode = "wb" if isinstance(data, (bytes, bytearray)) else "w"
+        with open(path, mode) as f:
+            f.write(data)
 
 
 def _storage_get(key: str):
-    """Download object as bytes, or None if not found."""
-    try:
-        return _store.download_as_bytes(key)
-    except _ObjNotFound:
-        return None
+    """Read as bytes — object storage on Replit, local file otherwise. Returns None if missing."""
+    if _ON_REPLIT:
+        try:
+            return _store.download_as_bytes(key)
+        except _ObjNotFound:
+            return None
+    else:
+        path = _key_to_local_path(key)
+        if not os.path.exists(path):
+            return None
+        with open(path, "rb") as f:
+            return f.read()
 
 
 def _storage_exists(key: str) -> bool:
-    """Return True if the key exists in object storage."""
-    return _store.exists(key)
+    """Check existence — object storage on Replit, local file otherwise."""
+    if _ON_REPLIT:
+        return _store.exists(key)
+    else:
+        return os.path.exists(_key_to_local_path(key))
 
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -557,6 +590,11 @@ if __name__ == "__main__":
         for k in _missing:
             print(f"  - {k}: {_required[k]}")
         print("Run 'python setup.py' for guided setup.\n")
+
+    if _ON_REPLIT:
+        print("Storage: Replit Object Storage")
+    else:
+        print(f"Storage: local filesystem ({_LOCAL_AUDIO_DIR})")
 
     port = int(os.environ.get("PORT", 5000))
     print(f"RetroCast server starting on http://localhost:{port}")
