@@ -506,7 +506,7 @@ def api_agent_start():
     if not _agent_rate_ok(request.remote_addr or "unknown"):
         return jsonify({"error": "Rate limit exceeded, try again later"}), 429
 
-    from agent_config import get_or_create_agent, get_style_overrides, get_dynamic_variables
+    from agent_config import get_agent_id, get_style_overrides, get_dynamic_variables
     from elevenlabs import ElevenLabs
 
     data = request.get_json(silent=True) or {}
@@ -518,10 +518,10 @@ def api_agent_start():
     if style_key not in STYLES:
         return jsonify({"error": "Unknown style"}), 404
 
-    base_url = os.environ.get("AGENT_BASE_URL", request.host_url.rstrip("/"))
-
     try:
-        agent_id = get_or_create_agent(style_key, base_url)
+        agent_id = get_agent_id(style_key)
+        if not agent_id:
+            return jsonify({"error": "Agent not configured for this style"}), 404
 
         # Load broadcast context if available
         broadcast_context = ""
@@ -582,7 +582,6 @@ if __name__ == "__main__":
         "FIRECRAWL_API_KEY": "news fetching",
         "OPENAI_API_KEY": "script generation",
         "ELEVENLABS_API_KEY": "audio generation & agent",
-        "ELEVENLABS_AGENT_ID": "Ask the Anchor (run 'python setup.py' to create)",
     }
     _missing = [k for k in _required if not os.environ.get(k, "").strip()]
     if _missing:

@@ -14,8 +14,6 @@ import sys
 ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 ENV_EXAMPLE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env.example")
 
-AGENT_NAME = "RetroCast Anchor"
-
 REQUIRED_KEYS = ["FIRECRAWL_API_KEY", "OPENAI_API_KEY", "ELEVENLABS_API_KEY"]
 
 
@@ -198,105 +196,24 @@ def validate_elevenlabs(interactive: bool) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def setup_agent(interactive: bool) -> bool:
-    """Ensure an ElevenLabs Conversational AI agent exists."""
+def setup_agents(interactive: bool) -> bool:
+    """Discover existing RetroCast agents and create any that are missing."""
     key = _get_env("ELEVENLABS_API_KEY")
     if not key:
-        _print_check(False, "ElevenLabs Agent", "ELEVENLABS_API_KEY required first")
-        return False
-
-    from elevenlabs import ElevenLabs
-
-    client = ElevenLabs(api_key=key)
-    agent_id = _get_env("ELEVENLABS_AGENT_ID")
-
-    # If agent ID is set, validate it
-    if agent_id:
-        try:
-            agent = client.conversational_ai.agents.get(agent_id=agent_id)
-            _print_check(True, "ElevenLabs Agent", f"'{agent.name}' ({agent_id})")
-            return True
-        except Exception:
-            print(f"  WARNING: ELEVENLABS_AGENT_ID={agent_id} is invalid, searching for agent...")
-            agent_id = ""
-
-    # Search for existing agent by name
-    try:
-        agents_response = client.conversational_ai.agents.list()
-        agents = agents_response.agents if hasattr(agents_response, "agents") else []
-        existing = None
-        for a in agents:
-            if a.name == AGENT_NAME:
-                existing = a
-                break
-
-        if existing:
-            agent_id = existing.agent_id
-            if interactive:
-                answer = input(f"  Found agent '{AGENT_NAME}' ({agent_id}). Use this? [Y/n] ").strip()
-                if answer.lower() == "n":
-                    existing = None
-                    agent_id = ""
-
-            if agent_id:
-                _write_env_var("ELEVENLABS_AGENT_ID", agent_id)
-                os.environ["ELEVENLABS_AGENT_ID"] = agent_id
-                _print_check(True, "ElevenLabs Agent", f"'{AGENT_NAME}' ({agent_id})")
-                return True
-    except Exception as e:
-        print(f"  WARNING: Could not list agents: {e}")
-
-    # Create new agent
-    if not interactive:
-        _print_check(False, "ElevenLabs Agent", "ELEVENLABS_AGENT_ID not set — run `python setup.py` (without --check)")
-        return False
-
-    answer = input(f"  No agent found. Create '{AGENT_NAME}'? [Y/n] ").strip()
-    if answer.lower() == "n":
-        _print_check(False, "ElevenLabs Agent", "Skipped by user")
+        _print_check(False, "ElevenLabs Agents", "ELEVENLABS_API_KEY required first")
         return False
 
     try:
-        from agent_config import BASE_AGENT_PROMPT
-        from elevenlabs.types import (
-            AgentConfig,
-            ConversationalConfig,
-            PromptAgentApiModelInput,
-            TtsConversationalConfigInput,
-        )
-        from retrocast import STYLES
+        from agent_config import ensure_agents
 
-        default_voice = STYLES["bbc"]["default_voice"]
-
-        agent = client.conversational_ai.agents.create(
-            name=AGENT_NAME,
-            conversation_config=ConversationalConfig(
-                agent=AgentConfig(
-                    prompt=PromptAgentApiModelInput(
-                        prompt=BASE_AGENT_PROMPT,
-                        llm="gpt-4o",
-                    ),
-                    first_message=(
-                        "Good evening. The broadcast is concluded. "
-                        "You're welcome to ask about any of today's stories. "
-                        "May I know your name?"
-                    ),
-                    language="en",
-                ),
-                tts=TtsConversationalConfigInput(
-                    voice_id=default_voice,
-                ),
-            ),
-        )
-
-        agent_id = agent.agent_id
-        _write_env_var("ELEVENLABS_AGENT_ID", agent_id)
-        os.environ["ELEVENLABS_AGENT_ID"] = agent_id
-        _print_check(True, "ElevenLabs Agent", f"Created '{AGENT_NAME}' ({agent_id})")
+        agents = ensure_agents()
+        _print_check(True, "ElevenLabs Agents", f"{len(agents)} agents ready")
+        for style_key, agent_id in sorted(agents.items()):
+            print(f"    RetroCast:{style_key} -> {agent_id}")
         return True
 
     except Exception as e:
-        _print_check(False, "ElevenLabs Agent", f"Creation failed: {e}")
+        _print_check(False, "ElevenLabs Agents", f"Failed: {e}")
         return False
 
 
@@ -306,9 +223,8 @@ def setup_agent(interactive: bool) -> bool:
 
 
 def setup_webhooks(interactive: bool) -> bool:
-    """Configure webhook tools on the agent if AGENT_BASE_URL is set."""
+    """Configure webhook tools on all agents if AGENT_BASE_URL is set."""
     base_url = _get_env("AGENT_BASE_URL")
-    agent_id = _get_env("ELEVENLABS_AGENT_ID")
 
     if not base_url:
         print("  [SKIP] Webhook tools — AGENT_BASE_URL not set")
@@ -316,14 +232,19 @@ def setup_webhooks(interactive: bool) -> bool:
         print("         Set AGENT_BASE_URL in .env and re-run setup.")
         return True  # Not a failure, just skipped
 
-    if not agent_id:
-        print("  [SKIP] Webhook tools — no agent configured")
-        return False
-
     try:
-        from agent_config import configure_default_agent
-        configure_default_agent(base_url, agent_id=agent_id)
-        _print_check(True, "Webhook tools", f"configured for {base_url}")
+        from agent_config import configure_agent_webhooks, ensure_agents
+
+        agents = ensure_agents()
+        if not agents:
+            print("  [SKIP] Webhook tools — no agents configured")
+            return False
+
+        for style_key, agent_id in sorted(agents.items()):
+            print(f"\n  Configuring webhooks for RetroCast:{style_key}...")
+            configure_agent_webhooks(base_url, agent_id=agent_id)
+
+        _print_check(True, "Webhook tools", f"configured {len(agents)} agents for {base_url}")
         return True
     except Exception as e:
         _print_check(False, "Webhook tools", str(e)[:80])
@@ -372,11 +293,11 @@ def main():
     results["elevenlabs"] = validate_elevenlabs(interactive)
 
     # Agent setup (requires ElevenLabs key)
-    print("\nElevenLabs Agent:")
+    print("\nElevenLabs Agents:")
     if results["elevenlabs"]:
-        results["agent"] = setup_agent(interactive)
+        results["agent"] = setup_agents(interactive)
     else:
-        _print_check(False, "ElevenLabs Agent", "fix ElevenLabs API key first")
+        _print_check(False, "ElevenLabs Agents", "fix ElevenLabs API key first")
         results["agent"] = False
 
     # Webhook secret
@@ -399,7 +320,7 @@ def main():
             "firecrawl": "Firecrawl API",
             "openai": "OpenAI API",
             "elevenlabs": "ElevenLabs API",
-            "agent": "ElevenLabs Agent",
+            "agent": "ElevenLabs Agents",
             "webhooks": "Webhook Tools",
         }.get(key, key)
         _print_check(ok, label)

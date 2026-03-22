@@ -227,15 +227,103 @@ def get_dynamic_variables(style_key: str, broadcast_context: str = "") -> dict:
     }
 
 
-# Agent ID — set via ELEVENLABS_AGENT_ID env var (created by setup.py)
-DEFAULT_AGENT_ID = os.environ.get("ELEVENLABS_AGENT_ID", "")
+# ---------------------------------------------------------------------------
+# Agent discovery & auto-provisioning
+# ---------------------------------------------------------------------------
+
+AGENT_NAME_PREFIX = "RetroCast:"
+
+# In-memory cache: {style_key: agent_id} — populated once per process
+_agents_cache = {}
+
+
+def _create_agent(client, style_key: str) -> str:
+    """Create a single ElevenLabs Conversational AI agent for a style.
+
+    Returns the new agent_id.
+    """
+    from elevenlabs.types import (
+        AgentConfig,
+        ConversationalConfig,
+        PromptAgentApiModelInput,
+        TtsConversationalConfigInput,
+    )
+
+    style = STYLES[style_key]
+    char = STYLE_CHARACTERS[style_key]
+    prompt = build_agent_prompt(style_key)
+
+    agent = client.conversational_ai.agents.create(
+        name=f"{AGENT_NAME_PREFIX}{style_key}",
+        conversation_config=ConversationalConfig(
+            agent=AgentConfig(
+                prompt=PromptAgentApiModelInput(
+                    prompt=prompt,
+                    llm="gpt-4o",
+                ),
+                first_message=char["first_message"],
+                language=char["language"],
+            ),
+            tts=TtsConversationalConfigInput(
+                voice_id=style["default_voice"],
+            ),
+        ),
+    )
+    return agent.agent_id
+
+
+def ensure_agents() -> dict:
+    """Discover existing RetroCast agents and create any that are missing.
+
+    Returns {style_key: agent_id} for all styles that have agents.
+    Results are cached for the lifetime of the process.
+    """
+    global _agents_cache
+    if _agents_cache:
+        return _agents_cache
+
+    from elevenlabs import ElevenLabs
+
+    client = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
+
+    # Discover existing agents by name prefix
+    response = client.conversational_ai.agents.list()
+    agents = response.agents if hasattr(response, "agents") else []
+
+    found = {}
+    for a in agents:
+        if a.name and a.name.startswith(AGENT_NAME_PREFIX):
+            key = a.name[len(AGENT_NAME_PREFIX):]
+            if key in STYLES:
+                found[key] = a.agent_id
+
+    # Create missing agents
+    for style_key in STYLES:
+        if style_key not in found:
+            print(f"  Creating agent {AGENT_NAME_PREFIX}{style_key}...")
+            found[style_key] = _create_agent(client, style_key)
+            print(f"    -> {found[style_key]}")
+
+    _agents_cache = found
+    return found
+
+
+def get_agent_id(style_key: str) -> str | None:
+    """Get the agent_id for a broadcast style.
+
+    Calls ensure_agents() on first use (discovers + creates missing agents).
+    Returns None if the style is unknown.
+    """
+    if style_key not in STYLES:
+        return None
+    agents = ensure_agents()
+    return agents.get(style_key)
 
 
 def build_tool_definitions(base_url: str) -> list:
     """Build webhook tool definitions for the agent, pointing to Flask endpoints.
 
     These are used when creating new agents programmatically via the SDK.
-    The pre-created DEFAULT_AGENT_ID already has tools configured via the dashboard.
     """
     from elevenlabs.types import (
         PromptAgentApiModelInputToolsItem_Webhook,
@@ -322,41 +410,6 @@ def build_tool_definitions(base_url: str) -> list:
     ]
 
 
-AGENTS_CACHE_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "web", "audio", "agents.json"
-)
-
-
-def _load_agents_cache() -> dict:
-    if os.path.exists(AGENTS_CACHE_PATH):
-        with open(AGENTS_CACHE_PATH) as f:
-            return json.load(f)
-    return {}
-
-
-def _save_agents_cache(cache: dict):
-    os.makedirs(os.path.dirname(AGENTS_CACHE_PATH), exist_ok=True)
-    with open(AGENTS_CACHE_PATH, "w") as f:
-        json.dump(cache, f, indent=2)
-
-
-def get_or_create_agent(style_key: str, base_url: str) -> str:
-    """Get the agent_id for this style.
-
-    Checks the local cache first, then falls back to the ELEVENLABS_AGENT_ID
-    env var (single agent with per-style runtime overrides).
-    """
-    cache = _load_agents_cache()
-    if style_key in cache:
-        return cache[style_key]
-
-    agent_id = os.environ.get("ELEVENLABS_AGENT_ID", "")
-    if agent_id:
-        return agent_id
-
-    raise ValueError(
-        "No ElevenLabs agent configured. Run 'python setup.py' to set up."
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -485,8 +538,8 @@ def _build_output_tools(base_url: str) -> list:
     ]
 
 
-def configure_default_agent(base_url: str, agent_id: str = ""):
-    """Update the agent with webhook tools and base config.
+def configure_agent_webhooks(base_url: str, agent_id: str = ""):
+    """Update an agent with webhook tools.
 
     Run this once after deploying the server (or when the base URL changes).
     Per-style customization (voice, language, prompt) happens via overrides at session start.
@@ -495,7 +548,7 @@ def configure_default_agent(base_url: str, agent_id: str = ""):
 
     Args:
         base_url: Public URL where the Flask server is reachable.
-        agent_id: Optional override; defaults to DEFAULT_AGENT_ID / env var.
+        agent_id: The agent to configure.
     """
     from elevenlabs import ElevenLabs
     from elevenlabs.types import (
@@ -508,9 +561,8 @@ def configure_default_agent(base_url: str, agent_id: str = ""):
         WebhookToolApiSchemaConfigInput,
     )
 
-    agent_id = agent_id or DEFAULT_AGENT_ID
     if not agent_id:
-        print("ERROR: No agent ID configured. Run 'python setup.py' first.")
+        print("ERROR: No agent ID provided.")
         return
 
     client = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
@@ -638,18 +690,21 @@ def configure_default_agent(base_url: str, agent_id: str = ""):
 
 
 def show_agent_info():
-    """Show the current configuration of the default agent."""
+    """Show the current configuration of all RetroCast agents."""
     from elevenlabs import ElevenLabs
 
-    if not DEFAULT_AGENT_ID:
-        print("ERROR: No agent ID configured. Run 'python setup.py' first.")
+    agents = ensure_agents()
+    if not agents:
+        print("No RetroCast agents found.")
         return
 
     client = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
-    agent = client.conversational_ai.agents.get(agent_id=DEFAULT_AGENT_ID)
 
-    print(f"Agent: {agent.name}")
-    print(f"ID: {agent.agent_id}")
+    for style_key, agent_id in sorted(agents.items()):
+        agent = client.conversational_ai.agents.get(agent_id=agent_id)
+        print(f"\n{'='*50}")
+        print(f"Agent: {agent.name}")
+        print(f"ID: {agent.agent_id}")
 
     cc = agent.conversation_config
     if cc and cc.agent:
@@ -689,7 +744,10 @@ if __name__ == "__main__":
             print("Example: python agent_config.py configure https://abc123.ngrok.io")
             sys.exit(1)
         base_url = sys.argv[2].rstrip("/")
-        configure_default_agent(base_url)
+        agents = ensure_agents()
+        for style_key, agent_id in sorted(agents.items()):
+            print(f"\nConfiguring webhooks for {AGENT_NAME_PREFIX}{style_key}...")
+            configure_agent_webhooks(base_url, agent_id=agent_id)
 
     elif cmd == "info":
         show_agent_info()
