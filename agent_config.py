@@ -237,9 +237,101 @@ AGENT_NAME_PREFIX = "RetroCast:"
 _agents_cache = {}
 
 
+def _get_base_url() -> str:
+    """Determine the public base URL for webhook callbacks."""
+    # Explicit override first
+    base = os.environ.get("AGENT_BASE_URL", "")
+    if base:
+        return base.rstrip("/")
+    # Auto-detect from Replit environment
+    domain = os.environ.get("REPLIT_DOMAINS", "")
+    if domain:
+        # REPLIT_DOMAINS can be comma-separated; use the first one
+        return f"https://{domain.split(',')[0].strip()}"
+    return "http://localhost:5000"
+
+
+def _create_tools(client, base_url: str) -> list:
+    """Create the 4 webhook tools as standalone resources. Returns list of tool IDs."""
+    from elevenlabs.types import (
+        ToolRequestModel,
+        ToolRequestModelToolConfig_Webhook,
+        WebhookToolApiSchemaConfigInput,
+    )
+
+    secret = os.environ.get("AGENT_WEBHOOK_SECRET", "")
+
+    tool_defs = [
+        {
+            "name": "search_news",
+            "description": "Search for recent news articles on a topic. Use this to find current news stories.",
+            "properties": {
+                "query": {"type": "string", "description": "Search query for news articles"},
+                "region": {"type": "string", "description": "Optional region filter (e.g., 'India', 'UK', 'US', 'Brazil')"},
+            },
+            "required": ["query"],
+        },
+        {
+            "name": "fact_check",
+            "description": "Verify a news claim by searching for fact-checks and corroborating sources.",
+            "properties": {
+                "claim": {"type": "string", "description": "The news claim to verify"},
+                "context": {"type": "string", "description": "Optional additional context about the claim"},
+            },
+            "required": ["claim"],
+        },
+        {
+            "name": "read_article",
+            "description": "Read the full content of a news article given its URL.",
+            "properties": {
+                "url": {"type": "string", "description": "The URL of the article to read"},
+            },
+            "required": ["url"],
+        },
+        {
+            "name": "search_topic",
+            "description": "Search the web for information on any topic.",
+            "properties": {
+                "query": {"type": "string", "description": "Search query"},
+            },
+            "required": ["query"],
+        },
+    ]
+
+    tool_ids = []
+    for td in tool_defs:
+        url = f"{base_url}/api/agent/tools/{td['name']}"
+        print(f"    [tools] Creating {td['name']} -> {url}")
+        tool_response = client.conversational_ai.tools.create(
+            request=ToolRequestModel(
+                tool_config=ToolRequestModelToolConfig_Webhook(
+                    type="webhook",
+                    name=td["name"],
+                    description=td["description"],
+                    api_schema=WebhookToolApiSchemaConfigInput(
+                        url=url,
+                        method="POST",
+                        request_headers={
+                            "X-Agent-Secret": secret,
+                        } if secret else None,
+                        request_body_schema={
+                            "type": "object",
+                            "properties": td["properties"],
+                            "required": td["required"],
+                        },
+                    ),
+                ),
+            ),
+        )
+        tool_ids.append(tool_response.id)
+        print(f"    [tools] Created: {tool_response.id}")
+    return tool_ids
+
+
 def _create_agent(client, style_key: str) -> str:
     """Create a single ElevenLabs Conversational AI agent for a style.
 
+    Creates webhook tools and attaches them to the agent.
     Returns the new agent_id.
     """
     from elevenlabs.types import (
@@ -257,6 +349,12 @@ def _create_agent(client, style_key: str) -> str:
     # English → eleven_turbo_v2, non-English → eleven_turbo_v2_5
     tts_model = "eleven_turbo_v2" if lang == "en" else "eleven_turbo_v2_5"
 
+    # Create webhook tools first so we can attach them
+    base_url = _get_base_url()
+    print(f"    [agent] Webhook base URL: {base_url}")
+    tool_ids = _create_tools(client, base_url)
+    print(f"    [agent] Created {len(tool_ids)} tools")
+
     agent = client.conversational_ai.agents.create(
         name=f"{AGENT_NAME_PREFIX}{style_key}",
         conversation_config=ConversationalConfig(
@@ -264,6 +362,7 @@ def _create_agent(client, style_key: str) -> str:
                 prompt=PromptAgentApiModelOutput(
                     prompt=prompt,
                     llm="gpt-4o",
+                    tool_ids=tool_ids,
                 ),
                 first_message=char["first_message"],
                 language=lang,
@@ -274,6 +373,7 @@ def _create_agent(client, style_key: str) -> str:
             ),
         ),
     )
+    print(f"    [agent] Agent created: {agent.agent_id}")
     return agent.agent_id
 
 
@@ -308,6 +408,39 @@ def ensure_agents() -> dict:
             print(f"  Creating agent {AGENT_NAME_PREFIX}{style_key}...")
             found[style_key] = _create_agent(client, style_key)
             print(f"    -> {found[style_key]}")
+
+    # Ensure existing agents have tools attached
+    base_url = _get_base_url()
+    for style_key, agent_id in found.items():
+        try:
+            agent_detail = client.conversational_ai.agents.get(agent_id=agent_id)
+            prompt_cfg = agent_detail.conversation_config.agent.prompt
+            tool_ids = prompt_cfg.tool_ids if prompt_cfg else None
+            if not tool_ids:
+                print(f"  [ensure] Agent {style_key} ({agent_id}) has no tools — adding...")
+                new_tool_ids = _create_tools(client, base_url)
+                from elevenlabs.types import (
+                    AgentConfig,
+                    ConversationalConfig,
+                    PromptAgentApiModelOutput,
+                )
+                client.conversational_ai.agents.update(
+                    agent_id=agent_id,
+                    conversation_config=ConversationalConfig(
+                        agent=AgentConfig(
+                            prompt=PromptAgentApiModelOutput(
+                                prompt=prompt_cfg.prompt if prompt_cfg else "",
+                                llm=prompt_cfg.llm if prompt_cfg else "gpt-4o",
+                                tool_ids=new_tool_ids,
+                            ),
+                        ),
+                    ),
+                )
+                print(f"  [ensure] Added {len(new_tool_ids)} tools to {style_key}")
+            else:
+                print(f"  [ensure] Agent {style_key} — {len(tool_ids)} tools OK")
+        except Exception as e:
+            print(f"  [ensure] WARNING checking agent {style_key}: {e}")
 
     _agents_cache = found
     return found

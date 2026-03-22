@@ -40,3 +40,8 @@ packages = ["ffmpeg", "ffmpeg-full"]
 [agent]
 expertMode = true
 integrations = ["javascript_object_storage:2.0.0"]
+
+[deployment]
+deploymentTarget = "cloudrun"
+build = ["sh", "-c", "pip install -r requirements.txt && python setup.py --check"]
+run = ["sh", "-c", "python server.py"]

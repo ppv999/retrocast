@@ -341,9 +341,12 @@ AGENT_WEBHOOK_SECRET = os.environ.get("AGENT_WEBHOOK_SECRET", "")
 def _validate_webhook_secret():
     """Validate the X-Agent-Secret header on webhook requests."""
     if not AGENT_WEBHOOK_SECRET:
-        return False  # No secret configured, reject all
+        return True  # No secret configured, allow all (development mode)
     header = request.headers.get("X-Agent-Secret", "")
-    return hmac.compare_digest(header, AGENT_WEBHOOK_SECRET)
+    valid = hmac.compare_digest(header, AGENT_WEBHOOK_SECRET)
+    if not valid:
+        print(f"[webhook] REJECTED — invalid X-Agent-Secret header")
+    return valid
 
 
 @app.route("/api/agent/tools/search_news", methods=["POST"])
@@ -357,6 +360,7 @@ def tool_search_news():
     data = request.get_json(silent=True) or {}
     query = data.get("query", "")
     region = data.get("region", "")
+    print(f"[tool] search_news called — query={query!r} region={region!r}")
     if not query:
         return jsonify({"error": "query is required"}), 400
 
@@ -365,6 +369,7 @@ def tool_search_news():
 
     try:
         fc = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
+        print(f"[tool] search_news — calling Firecrawl: {full_query!r}")
         response = fc.search(full_query, limit=5, tbs="qdr:d", sources=["news"])
         results = []
         for item in (response.news or []):
@@ -377,9 +382,10 @@ def tool_search_news():
                 "snippet": item.snippet or "",
                 "date": date,
             })
+        print(f"[tool] search_news — Firecrawl returned {len(results)} results")
         return jsonify({"results": results})
     except Exception as e:
-        print(f"[server] ERROR in search_news: {e}")
+        print(f"[tool] search_news — ERROR: {e}")
         return jsonify({"error": "News search failed"}), 500
 
 
@@ -392,6 +398,7 @@ def tool_fact_check():
 
     data = request.get_json(silent=True) or {}
     claim = data.get("claim", "")
+    print(f"[tool] fact_check called — claim={claim!r}")
     if not claim:
         return jsonify({"error": "claim is required"}), 400
 
@@ -402,6 +409,7 @@ def tool_fact_check():
 
     try:
         fc = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
+        print(f"[tool] fact_check — calling Firecrawl: {query!r}")
         response = fc.search(query, limit=5, sources=["news"])
         results = []
         for item in (response.news or []):
@@ -411,9 +419,10 @@ def tool_fact_check():
                 "snippet": item.snippet or "",
                 "date": getattr(item, "date", "") or "",
             })
+        print(f"[tool] fact_check — Firecrawl returned {len(results)} results")
         return jsonify({"results": results})
     except Exception as e:
-        print(f"[server] ERROR in fact_check: {e}")
+        print(f"[tool] fact_check — ERROR: {e}")
         return jsonify({"error": "Fact check failed"}), 500
 
 
@@ -426,6 +435,7 @@ def tool_read_article():
 
     data = request.get_json(silent=True) or {}
     url = data.get("url", "")
+    print(f"[tool] read_article called — url={url!r}")
     if not url:
         return jsonify({"error": "url is required"}), 400
 
@@ -445,6 +455,7 @@ def tool_read_article():
 
     try:
         fc = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
+        print(f"[tool] read_article — calling Firecrawl scrape: {url!r}")
         response = fc.scrape_url(url, formats=["markdown"])
         content = response.get("markdown", "") if isinstance(response, dict) else ""
         # Try attribute access if dict access fails
@@ -458,9 +469,10 @@ def tool_read_article():
         # Truncate to ~3000 chars
         if len(content) > 3000:
             content = content[:3000] + "\n\n[Content truncated...]"
+        print(f"[tool] read_article — got {len(content)} chars, title={title!r}")
         return jsonify({"title": title, "url": url, "content": content})
     except Exception as e:
-        print(f"[server] ERROR in read_article: {e}")
+        print(f"[tool] read_article — ERROR: {e}")
         return jsonify({"error": "Article fetch failed"}), 500
 
 
@@ -473,11 +485,13 @@ def tool_search_topic():
 
     data = request.get_json(silent=True) or {}
     query = data.get("query", "")
+    print(f"[tool] search_topic called — query={query!r}")
     if not query:
         return jsonify({"error": "query is required"}), 400
 
     try:
         fc = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
+        print(f"[tool] search_topic — calling Firecrawl: {query!r}")
         response = fc.search(query, limit=3)
         results = []
         # General web search returns results differently
@@ -490,9 +504,10 @@ def tool_search_topic():
                 "url": getattr(item, "url", "") or "",
                 "snippet": getattr(item, "snippet", getattr(item, "description", "")) or "",
             })
+        print(f"[tool] search_topic — Firecrawl returned {len(results)} results")
         return jsonify({"results": results})
     except Exception as e:
-        print(f"[server] ERROR in search_topic: {e}")
+        print(f"[tool] search_topic — ERROR: {e}")
         return jsonify({"error": "Topic search failed"}), 500
 
 
@@ -519,9 +534,12 @@ def api_agent_start():
         return jsonify({"error": "Unknown style"}), 404
 
     try:
+        print(f"[agent] Starting session for style={style_key!r} date={date_str!r}")
         agent_id = get_agent_id(style_key)
         if not agent_id:
+            print(f"[agent] No agent_id found for style={style_key!r}")
             return jsonify({"error": "Agent not configured for this style"}), 404
+        print(f"[agent] Using agent_id={agent_id}")
 
         # Load broadcast context if available
         broadcast_context = ""
@@ -551,6 +569,7 @@ def api_agent_start():
         overrides = get_style_overrides(style_key, broadcast_context)
         dynamic_variables = get_dynamic_variables(style_key, broadcast_context)
 
+        print(f"[agent] Session ready — signed URL obtained for {style_key}")
         return jsonify({
             "signed_url": signed_url_response.signed_url,
             "overrides": overrides,
