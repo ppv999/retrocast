@@ -370,22 +370,27 @@ def tool_search_news():
         fc = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
         print(f"[tool] search_news — calling Firecrawl: {full_query!r}")
         response = fc.search(full_query, limit=5, tbs="qdr:d", sources=["news"])
-        results = []
+        all_results = []
+        today_results = []
         for item in (response.news or []):
-            date = getattr(item, "date", "") or ""
-            if not _is_article_from_date(date, today):
-                continue
-            results.append({
+            entry = {
                 "title": item.title or "",
                 "url": item.url or "",
                 "snippet": item.snippet or "",
-                "date": date,
-            })
+                "date": getattr(item, "date", "") or "",
+            }
+            all_results.append(entry)
+            if _is_article_from_date(entry["date"], today):
+                today_results.append(entry)
+
+        results = today_results if today_results else all_results
+        if not today_results and all_results:
+            print(f"[tool] search_news — no articles from today, falling back to {len(all_results)} unfiltered results")
         print(f"[tool] search_news — Firecrawl returned {len(results)} results")
         return jsonify({"results": results})
     except Exception as e:
         print(f"[tool] search_news — ERROR: {e}")
-        return jsonify({"error": "News search failed"}), 500
+        return jsonify({"results": [], "note": "Search temporarily unavailable, try a simpler query"})
 
 
 @app.route("/api/agent/tools/fact_check", methods=["POST"])
@@ -422,7 +427,7 @@ def tool_fact_check():
         return jsonify({"results": results})
     except Exception as e:
         print(f"[tool] fact_check — ERROR: {e}")
-        return jsonify({"error": "Fact check failed"}), 500
+        return jsonify({"results": [], "note": "Fact check temporarily unavailable"})
 
 
 @app.route("/api/agent/tools/read_article", methods=["POST"])
@@ -474,7 +479,7 @@ def tool_read_article():
         return jsonify({"title": title, "url": url, "content": content})
     except Exception as e:
         print(f"[tool] read_article — ERROR: {e}")
-        return jsonify({"error": "Article fetch failed"}), 500
+        return jsonify({"title": "", "url": url, "content": "", "note": "Article could not be fetched"})
 
 
 @app.route("/api/agent/tools/search_topic", methods=["POST"])
@@ -495,6 +500,7 @@ def tool_search_topic():
         print(f"[tool] search_topic — calling Firecrawl: {query!r}")
         response = fc.search(query, limit=3)
         results = []
+        print(f"[tool] search_topic — response attrs: data={hasattr(response, 'data')}, news={hasattr(response, 'news')}")
         # General web search returns results differently
         items = response.data if hasattr(response, "data") else []
         if not items and hasattr(response, "news"):
@@ -509,7 +515,7 @@ def tool_search_topic():
         return jsonify({"results": results})
     except Exception as e:
         print(f"[tool] search_topic — ERROR: {e}")
-        return jsonify({"error": "Topic search failed"}), 500
+        return jsonify({"results": [], "note": "Search temporarily unavailable, try a simpler query"})
 
 
 # ---------------------------------------------------------------------------
