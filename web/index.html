@@ -796,10 +796,12 @@
     /* --- Ask the Anchor callout --- */
     .ask-anchor-callout {
       margin-top: 32px;
-      padding: 24px 28px;
+      padding: 28px 32px;
       border-radius: 16px;
       background: rgba(212, 164, 76, 0.04);
-      border: 1px solid rgba(212, 164, 76, 0.15);
+      border: 1px solid rgba(212, 164, 76, 0.25);
+      box-shadow: 0 0 40px rgba(212, 164, 76, 0.06);
+      backdrop-filter: blur(10px);
       display: flex;
       align-items: flex-start;
       gap: 16px;
@@ -807,20 +809,21 @@
 
     .ask-anchor-callout-icon {
       flex-shrink: 0;
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      background: rgba(212, 164, 76, 0.1);
+      width: 54px;
+      height: 84px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(255, 107, 0, 0.08) 0%, rgba(212, 164, 76, 0.06) 100%);
+      border: 1px solid rgba(212, 164, 76, 0.12);
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 0;
     }
 
-    .ask-anchor-callout-icon svg {
-      width: 24px;
-      height: 24px;
-      fill: var(--gold);
-    }
+    .callout-logo-firecrawl { width: 26px; height: 26px; padding: 6px 0 4px; }
+    .callout-logo-divider { width: 24px; height: 1px; background: rgba(212, 164, 76, 0.2); }
+    .callout-logo-elevenlabs { width: 20px; height: 20px; padding: 4px 0 6px; }
 
     .ask-anchor-callout-text h4 {
       font-family: 'Instrument Serif', serif;
@@ -833,6 +836,25 @@
       font-size: 0.82rem;
       color: #a0a0b8;
       line-height: 1.6;
+    }
+
+    .callout-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .callout-feature {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(212, 164, 76, 0.1);
+      color: rgba(212, 164, 76, 0.8);
+      border: 1px solid rgba(212, 164, 76, 0.12);
     }
 
     /* --- Responsive --- */
@@ -879,6 +901,170 @@
         align-items: center;
         gap: 10px;
       }
+
+      .ask-anchor-callout-icon {
+        width: 64px;
+        height: 48px;
+        flex-direction: row;
+        border-radius: 12px;
+      }
+
+      .callout-logo-firecrawl { padding: 0 4px 0 6px; }
+      .callout-logo-divider { width: 1px; height: 24px; }
+      .callout-logo-elevenlabs { padding: 0 6px 0 4px; }
+
+      .callout-features { justify-content: center; }
+    }
+
+    /* --- Dynamic Island Status Notifications --- */
+    .status-island {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-120%) scale(0.9);
+      min-width: 300px;
+      max-width: 440px;
+      background: rgba(26, 26, 46, 0.85);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--gold-dim);
+      border-radius: 28px;
+      padding: 14px 20px 12px;
+      z-index: 10000;
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                  border-radius 0.3s ease;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 164, 76, 0.1);
+    }
+
+    .status-island.visible {
+      transform: translateX(-50%) translateY(0) scale(1);
+      opacity: 1;
+      pointer-events: auto;
+      border-radius: 20px;
+    }
+
+    .island-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .island-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--gold);
+      animation: islandPulse 1.5s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes islandPulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--gold); }
+      50% { opacity: 0.5; box-shadow: 0 0 8px var(--gold); }
+    }
+
+    .island-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .island-subtitle {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    .island-pipeline {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .island-step {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 500;
+      color: var(--muted);
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .island-step.active {
+      color: var(--gold);
+      border-color: var(--gold);
+      animation: stepGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes stepGlow {
+      0%, 100% { box-shadow: 0 0 4px rgba(212, 164, 76, 0.2); }
+      50% { box-shadow: 0 0 10px rgba(212, 164, 76, 0.4); }
+    }
+
+    .island-step.done {
+      color: #4ade80;
+      border-color: #4ade80;
+      animation: none;
+      box-shadow: none;
+    }
+
+    .island-step-icon {
+      font-size: 0.7rem;
+      line-height: 1;
+    }
+
+    .island-progress-bar {
+      height: 3px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .island-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--gold), #e8c46a);
+      border-radius: 2px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @media (max-width: 768px) {
+      .status-island {
+        top: 8px;
+        min-width: 260px;
+        max-width: calc(100vw - 32px);
+        padding: 10px 14px 8px;
+      }
+
+      .island-title { font-size: 0.7rem; }
+      .island-subtitle { font-size: 0.6rem; }
+
+      .island-step {
+        font-size: 0.6rem;
+        padding: 2px 6px;
+      }
+
+      .island-step-label { display: none; }
+      .island-step-label-short { display: inline; }
+    }
+
+    @media (min-width: 769px) {
+      .island-step-label-short { display: none; }
     }
   </style>
 </head>
@@ -915,6 +1101,17 @@
       cursor: pointer;
       opacity: 0.8;
     ">&times;</button>
+  </div>
+
+  <!-- Dynamic Island Status -->
+  <div class="status-island" id="statusIsland">
+    <div class="island-header">
+      <div class="island-dot"></div>
+      <span class="island-title" id="islandTitle"></span>
+      <span class="island-subtitle" id="islandSubtitle"></span>
+    </div>
+    <div class="island-pipeline" id="islandPipeline"></div>
+    <div class="island-progress-bar"><div class="island-progress-fill" id="islandProgress"></div></div>
   </div>
 
   <!-- Globe background -->
@@ -1085,11 +1282,28 @@
       <!-- Ask the Anchor callout -->
       <div class="ask-anchor-callout fade-rise" style="--delay: 0.1s">
         <div class="ask-anchor-callout-icon">
-          <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+          <!-- Firecrawl flame -->
+          <svg class="callout-logo-firecrawl" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 3C12.5 8 10 12 10 16c0 3.3 2.7 6 6 6s6-2.7 6-6c0-2-.8-3.8-2-5.2-.2-.2-.5-.1-.5.2 0 2-1.3 3.6-3 4.2-.3.1-.5-.1-.5-.4.5-3-1-6.5-3-9.5-.2-.3-.6-.1-.6.2C12 7 13 10 13.5 12c.1.3-.2.5-.4.3C10.5 10.5 9 7.5 9.5 4c0-.3-.3-.5-.6-.3C6.5 5.8 5 9.5 5 13c0 6.1 4.9 11 11 11s11-4.9 11-11c0-4-2-7.5-5-10-.2-.2-.5-.1-.5.2 0 1.5-.5 3-1.5 4-.2.2-.5.1-.6-.2C18.5 5.5 17 4 16 3z" fill="#FF6B00"/>
+          </svg>
+          <div class="callout-logo-divider"></div>
+          <!-- ElevenLabs bars -->
+          <svg class="callout-logo-elevenlabs" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="3" width="3" height="18" rx="1.5" fill="#ffffff" opacity="0.85"/>
+            <rect x="10.5" y="3" width="3" height="18" rx="1.5" fill="#ffffff" opacity="0.85"/>
+            <rect x="17" y="7" width="3" height="10" rx="1.5" fill="#ffffff" opacity="0.5"/>
+          </svg>
         </div>
         <div class="ask-anchor-callout-text">
           <h4>Dial In</h4>
-          <p>After the broadcast, talk to the anchor live. Ask questions, verify news, get advice, or request deeper research. Powered by ElevenLabs Agents and Firecrawl search working together in real time.</p>
+          <p>Call the anchor after the broadcast. They answer in character, in their native language, with live access to the web. Ask them to fact-check a claim, research a topic, or read you the original source &mdash; they'll search it in real time while keeping you company on air.</p>
+          <div class="callout-features">
+            <span class="callout-feature">ElevenLabs Agents</span>
+            <span class="callout-feature">4 Firecrawl tools</span>
+            <span class="callout-feature">8 personas</span>
+            <span class="callout-feature">3 languages</span>
+            <span class="callout-feature">Tool-invisible UX</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1355,12 +1569,98 @@
     // Set initial featured
     setFeatured(ordered[0]);
 
+    // --- Dynamic Island Status ---
+    const statusIsland = document.getElementById('statusIsland');
+    const islandTitle = document.getElementById('islandTitle');
+    const islandSubtitle = document.getElementById('islandSubtitle');
+    const islandPipeline = document.getElementById('islandPipeline');
+    const islandProgress = document.getElementById('islandProgress');
+    let islandTimerId = null;
+    let islandSteps = [];
+
+    function showIsland(title, subtitle, steps) {
+      islandTitle.textContent = title;
+      islandSubtitle.textContent = subtitle;
+      islandSteps = steps;
+      islandPipeline.innerHTML = steps.map((s, i) =>
+        `<div class="island-step" data-island-idx="${i}">` +
+          `<span class="island-step-icon">${s.icon}</span>` +
+          `<span class="island-step-label">${s.label}</span>` +
+          `<span class="island-step-label-short">${s.short || s.label}</span>` +
+        `</div>`
+      ).join('');
+      islandProgress.style.width = '0%';
+      statusIsland.classList.add('visible');
+    }
+
+    function setIslandStep(index) {
+      const els = islandPipeline.querySelectorAll('.island-step');
+      els.forEach((el, i) => {
+        el.classList.remove('active', 'done');
+        const icon = el.querySelector('.island-step-icon');
+        if (i < index) {
+          el.classList.add('done');
+          icon.textContent = '\u2713';
+        } else if (i === index) {
+          el.classList.add('active');
+          icon.textContent = islandSteps[i].icon;
+        } else {
+          icon.textContent = islandSteps[i].icon;
+        }
+      });
+      updateIslandProgress((index) / islandSteps.length);
+    }
+
+    function updateIslandProgress(fraction) {
+      islandProgress.style.width = Math.min(fraction * 100, 100) + '%';
+    }
+
+    function hideIsland() {
+      statusIsland.classList.remove('visible');
+      if (islandTimerId) {
+        clearInterval(islandTimerId);
+        islandTimerId = null;
+      }
+    }
+
+    function showGenerationIsland() {
+      showIsland('Preparing your broadcast', 'You\u2019re the first to tune in today \u2014 brewing fresh', [
+        { icon: '\uD83D\uDD25', label: 'Searching news', short: 'News' },
+        { icon: '\uD83D\uDEE1\uFE0F', label: 'Fact-checking', short: 'Verify' },
+        { icon: '\u2728', label: 'Writing script', short: 'Script' },
+        { icon: '\uD83C\uDFA7', label: 'Generating audio', short: 'Audio' },
+      ]);
+    }
+
+    function updateGenerationStep(stepText) {
+      if (!stepText) return;
+      if (stepText.includes('Fetching')) setIslandStep(0);
+      else if (stepText.includes('Verifying')) setIslandStep(1);
+      else if (stepText.includes('Writing')) setIslandStep(2);
+      else if (stepText.includes('Generating audio')) setIslandStep(3);
+    }
+
+    function showConnectionIsland() {
+      let elapsed = 0;
+      showIsland('Connecting to the anchor', '0s / ~10s', [
+        { icon: '\uD83C\uDF99\uFE0F', label: 'Microphone', short: 'Mic' },
+        { icon: '\uD83D\uDDA5\uFE0F', label: 'Session', short: 'Server' },
+        { icon: '\uD83C\uDFA7', label: 'Voice link', short: 'Voice' },
+      ]);
+      setIslandStep(0);
+      islandTimerId = setInterval(() => {
+        elapsed++;
+        islandSubtitle.textContent = elapsed + 's / ~10s';
+      }, 1000);
+    }
+
     // --- Play logic with on-demand generation ---
     function stopPolling() {
       if (pollTimer) {
         clearInterval(pollTimer);
         pollTimer = null;
       }
+      hideIsland();
     }
 
     function showLoading() {
@@ -1398,6 +1698,7 @@
         } else if (isToday()) {
           // Today and not ready — trigger generation
           showLoading();
+          showGenerationIsland();
           await fetch(`/api/generate/${date}/${s.key}`, { method: 'POST' });
 
           // Poll for completion and show progress
@@ -1423,6 +1724,7 @@
                 }
               } else if (statusData.step) {
                 featuredLoading.textContent = statusData.step + '...';
+                updateGenerationStep(statusData.step);
               }
             } catch (e) { /* keep polling */ }
           }, 3000);
@@ -1687,6 +1989,7 @@
       }
 
       setConvStatus('Ringing...', false);
+      showConnectionIsland();
       ringingSfx.start();
       askAnchorBtn.style.display = 'none';
       featuredPlayBtn.style.display = 'none';
@@ -1699,6 +2002,7 @@
       try {
         // Request microphone access first
         await navigator.mediaDevices.getUserMedia({ audio: true });
+        setIslandStep(1);
 
         // Get signed URL and per-style overrides from server
         const res = await fetch('/api/agent/start', {
@@ -1717,6 +2021,7 @@
         }
 
         const data = await res.json();
+        setIslandStep(2);
         console.log('Agent start response:', data);
 
         // Normalize snake_case override keys to camelCase for the JS SDK
@@ -1741,6 +2046,9 @@
             console.log('Conversation connected');
             ringingSfx.stop();
             setConvStatus('Listening...', false);
+            setIslandStep(3);
+            updateIslandProgress(1);
+            setTimeout(hideIsland, 1500);
           },
           onDisconnect: (details) => {
             ringingSfx.stop();
@@ -1809,6 +2117,7 @@
     }
 
     function endConversation() {
+      hideIsland();
       ringingSfx.stop();
       if (activeConversation) {
         try { activeConversation.endSession(); } catch (e) {}
