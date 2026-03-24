@@ -848,8 +848,13 @@
 
       .featured-player { flex-wrap: wrap; justify-content: center; }
 
-      .style-switcher { gap: 6px; }
-      .style-pill { padding: 6px 12px; font-size: 0.72rem; }
+      .style-switcher {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin-bottom: 48px;
+      }
+      .style-pill { padding: 6px 10px; font-size: 0.68rem; justify-content: center; }
 
       .pipeline {
         flex-direction: column;
