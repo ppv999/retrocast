@@ -644,6 +644,67 @@
       height: 40px;
     }
 
+    /* --- Firecrawl Tools showcase --- */
+    .tools-section {
+      position: relative;
+      z-index: 2;
+      padding: 0 24px 80px;
+      background: rgba(8, 14, 30, 0.78);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+    }
+
+    .tools-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .tool-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 107, 0, 0.1);
+      border-radius: 14px;
+      padding: 20px 18px;
+    }
+
+    .tool-name {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #FF6B00;
+      margin-bottom: 8px;
+    }
+
+    .tool-desc {
+      font-size: 0.8rem;
+      color: #a0a0b8;
+      line-height: 1.55;
+      margin-bottom: 10px;
+    }
+
+    .tool-api {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.62rem;
+      color: rgba(255, 107, 0, 0.55);
+      padding: 3px 7px;
+      border-radius: 4px;
+      background: rgba(255, 107, 0, 0.06);
+      display: inline-block;
+    }
+
+    @media (max-width: 768px) {
+      .tools-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+    }
+
     /* --- Footer --- */
     footer {
       position: relative;
@@ -959,44 +1020,6 @@
       margin-bottom: 8px;
     }
 
-    .island-step {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 3px 8px;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      font-family: 'Inter', sans-serif;
-      font-size: 0.65rem;
-      font-weight: 500;
-      color: var(--muted);
-      transition: all 0.3s ease;
-      white-space: nowrap;
-    }
-
-    .island-step.active {
-      color: var(--gold);
-      border-color: var(--gold);
-      animation: stepGlow 2s ease-in-out infinite;
-    }
-
-    @keyframes stepGlow {
-      0%, 100% { box-shadow: 0 0 4px rgba(212, 164, 76, 0.2); }
-      50% { box-shadow: 0 0 10px rgba(212, 164, 76, 0.4); }
-    }
-
-    .island-step.done {
-      color: #4ade80;
-      border-color: #4ade80;
-      animation: none;
-      box-shadow: none;
-    }
-
-    .island-step-icon {
-      font-size: 0.7rem;
-      line-height: 1;
-    }
-
     .island-progress-bar {
       height: 3px;
       background: rgba(255, 255, 255, 0.08);
@@ -1022,18 +1045,6 @@
 
       .island-title { font-size: 0.7rem; }
       .island-subtitle { font-size: 0.6rem; }
-
-      .island-step {
-        font-size: 0.6rem;
-        padding: 2px 6px;
-      }
-
-      .island-step-label { display: none; }
-      .island-step-label-short { display: inline; }
-    }
-
-    @media (min-width: 769px) {
-      .island-step-label-short { display: none; }
     }
   </style>
 </head>
@@ -1187,7 +1198,7 @@
             </svg>
           </div>
           <h3 class="pipe-title">Firecrawl gathers news</h3>
-          <p class="pipe-desc">Today's top stories in politics, economy, sports, and science, sourced worldwide.</p>
+          <p class="pipe-desc">Searches today's headlines via Firecrawl's news endpoint, filtered by region and date.</p>
         </div>
 
         <!-- Arrow -->
@@ -1205,7 +1216,7 @@
             </svg>
           </div>
           <h3 class="pipe-title">Firecrawl verifies facts</h3>
-          <p class="pipe-desc">Cross-checks claims to catch fake news. Flagged stories get called out on air.</p>
+          <p class="pipe-desc">Each claim is cross-searched for fact-checks. Unverified stories get flagged on air.</p>
         </div>
 
         <!-- Arrow -->
@@ -1226,7 +1237,7 @@
             </svg>
           </div>
           <h3 class="pipe-title">AI writes the script</h3>
-          <p class="pipe-desc">Selects the best stories and rewrites them in each era's authentic broadcast voice.</p>
+          <p class="pipe-desc">Claude picks the top stories and rewrites them in each era's authentic broadcast voice.</p>
         </div>
 
         <!-- Arrow -->
@@ -1243,13 +1254,44 @@
             </svg>
           </div>
           <h3 class="pipe-title">ElevenLabs delivers it</h3>
-          <p class="pipe-desc">Distinct voices for each era, natural delivery, and period-appropriate pacing.</p>
+          <p class="pipe-desc">Eight unique voice IDs, one per persona. Language-native TTS with period-appropriate pacing.</p>
         </div>
       </div>
       </div>
 
 
 
+    </div>
+  </div>
+
+  <!-- Firecrawl Tools: Dial-In Live Search -->
+  <div class="tools-section">
+    <div class="tools-inner">
+      <div class="section-label fade-rise">Dial-In Live Search</div>
+      <h2 class="section-title fade-rise">4 Firecrawl webhook tools the anchor calls in real time</h2>
+
+      <div class="tools-grid fade-rise" style="--delay: 0.1s">
+        <div class="tool-card">
+          <div class="tool-name">search_news</div>
+          <p class="tool-desc">Searches today's headlines by topic and region. The anchor uses this when you ask "What happened with...?"</p>
+          <span class="tool-api">fc.search(query, sources: news)</span>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">fact_check</div>
+          <p class="tool-desc">Verifies a claim against fact-checking sources. Ask the anchor "Is it true that...?" and this fires.</p>
+          <span class="tool-api">fc.search(claim + "fact check")</span>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">read_article</div>
+          <p class="tool-desc">Scrapes and reads the full text of any article URL. The anchor can quote the original source back to you.</p>
+          <span class="tool-api">fc.scrape_url(url, markdown)</span>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">search_topic</div>
+          <p class="tool-desc">General web search for any topic. Go off-script and ask about anything beyond the news.</p>
+          <span class="tool-api">fc.search(query)</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1520,41 +1562,6 @@
     const islandPipeline = document.getElementById('islandPipeline');
     const islandProgress = document.getElementById('islandProgress');
     let islandTimerId = null;
-    let islandSteps = [];
-
-    function showIsland(title, subtitle, steps) {
-      islandTitle.textContent = title;
-      islandSubtitle.textContent = subtitle;
-      islandSteps = steps;
-      islandPipeline.innerHTML = steps.map((s, i) =>
-        `<div class="island-step" data-island-idx="${i}">` +
-          `<span class="island-step-icon">${s.icon}</span>` +
-          `<span class="island-step-label">${s.label}</span>` +
-          `<span class="island-step-label-short">${s.short || s.label}</span>` +
-        `</div>`
-      ).join('');
-      islandProgress.style.width = '0%';
-      statusIsland.classList.add('visible');
-    }
-
-    function setIslandStep(index) {
-      const els = islandPipeline.querySelectorAll('.island-step');
-      els.forEach((el, i) => {
-        el.classList.remove('active', 'done');
-        const icon = el.querySelector('.island-step-icon');
-        if (i < index) {
-          el.classList.add('done');
-          icon.textContent = '\u2713';
-        } else if (i === index) {
-          el.classList.add('active');
-          icon.textContent = islandSteps[i].icon;
-        } else {
-          icon.textContent = islandSteps[i].icon;
-        }
-      });
-      updateIslandProgress((index) / islandSteps.length);
-    }
-
     function updateIslandProgress(fraction) {
       islandProgress.style.width = Math.min(fraction * 100, 100) + '%';
     }
