@@ -6,9 +6,14 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <title>RetroCast - News Without the Noise</title>
   <meta name="description" content="Modern news is noise. RetroCast delivers today's headlines with the calm authority of vintage broadcast eras — eight styles, four countries, generated fresh every day.">
-  <meta property="og:title" content="RetroCast - News Without the Noise">
-  <meta property="og:description" content="Today's news. Yesterday's voice. AI-generated retro broadcasts that strip away the shouting and bring back the calm.">
+  <meta property="og:title" content="RetroCast — News Without the Noise">
+  <meta property="og:description" content="Today's headlines rebroadcast in 8 vintage styles from 4 countries — powered by Firecrawl and ElevenLabs. Dial in and talk to the anchor live.">
   <meta property="og:type" content="website">
+  <meta property="og:image" content="retrocast-social-preview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="RetroCast — News Without the Noise">
+  <meta name="twitter:description" content="Today's headlines rebroadcast in 8 vintage styles from 4 countries — powered by Firecrawl and ElevenLabs. Dial in and talk to the anchor live.">
+  <meta name="twitter:image" content="retrocast-social-preview.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -648,6 +653,7 @@
     .tools-section {
       position: relative;
       z-index: 2;
+      margin-top: -1px;
       padding: 0 24px 80px;
       background: rgba(8, 14, 30, 0.78);
       backdrop-filter: blur(30px);
@@ -671,6 +677,8 @@
       border: 1px solid rgba(255, 107, 0, 0.1);
       border-radius: 14px;
       padding: 20px 18px;
+      display: flex;
+      flex-direction: column;
     }
 
     .tool-name {
@@ -686,6 +694,7 @@
       color: #a0a0b8;
       line-height: 1.55;
       margin-bottom: 10px;
+      flex: 1;
     }
 
     .tool-api {
@@ -1003,6 +1012,9 @@
       font-weight: 600;
       color: var(--text);
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
     }
 
     .island-subtitle {
@@ -1011,6 +1023,7 @@
       color: var(--muted);
       margin-left: auto;
       white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .island-pipeline {
@@ -1038,13 +1051,14 @@
     @media (max-width: 768px) {
       .status-island {
         top: 8px;
-        min-width: 260px;
+        min-width: 0;
         max-width: calc(100vw - 32px);
         padding: 10px 14px 8px;
       }
 
+      .island-header { flex-wrap: wrap; }
       .island-title { font-size: 0.7rem; }
-      .island-subtitle { font-size: 0.6rem; }
+      .island-subtitle { font-size: 0.6rem; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
     }
   </style>
 </head>
@@ -1268,27 +1282,27 @@
   <div class="tools-section">
     <div class="tools-inner">
       <div class="section-label fade-rise">Dial-In Live Search</div>
-      <h2 class="section-title fade-rise">4 Firecrawl webhook tools the anchor calls in real time</h2>
+      <h2 class="section-title fade-rise">4 Firecrawl tools your anchor calls live</h2>
 
       <div class="tools-grid fade-rise" style="--delay: 0.1s">
         <div class="tool-card">
           <div class="tool-name">search_news</div>
-          <p class="tool-desc">Searches today's headlines by topic and region. The anchor uses this when you ask "What happened with...?"</p>
+          <p class="tool-desc">Pulls today's headlines by topic and region. Ask "What happened with…?" and this fires.</p>
           <span class="tool-api">fc.search(query, sources: news)</span>
         </div>
         <div class="tool-card">
           <div class="tool-name">fact_check</div>
-          <p class="tool-desc">Verifies a claim against fact-checking sources. Ask the anchor "Is it true that...?" and this fires.</p>
+          <p class="tool-desc">Cross-checks a claim against fact-checking sources. Ask "Is it true that…?" to trigger it.</p>
           <span class="tool-api">fc.search(claim + "fact check")</span>
         </div>
         <div class="tool-card">
           <div class="tool-name">read_article</div>
-          <p class="tool-desc">Scrapes and reads the full text of any article URL. The anchor can quote the original source back to you.</p>
+          <p class="tool-desc">Scrapes the full text of any article URL so the anchor can quote the original source back to you.</p>
           <span class="tool-api">fc.scrape_url(url, markdown)</span>
         </div>
         <div class="tool-card">
           <div class="tool-name">search_topic</div>
-          <p class="tool-desc">General web search for any topic. Go off-script and ask about anything beyond the news.</p>
+          <p class="tool-desc">Runs a general web search on any topic. Go off-script and ask about anything beyond the news.</p>
           <span class="tool-api">fc.search(query)</span>
         </div>
       </div>
