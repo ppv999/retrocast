@@ -23,7 +23,7 @@ Modern news is noise. RetroCast delivers today's headlines with the calm authori
 
 ---
 
-RetroCast fetches current news via [Firecrawl](https://firecrawl.dev), writes authentic broadcast scripts with [OpenAI GPT-4o](https://openai.com), and generates period-accurate audio with [ElevenLabs](https://elevenlabs.io) — complete with era-appropriate intro/outro music, multi-voice anchoring, and a live "Ask the Anchor" call-in feature.
+RetroCast fetches current news via [Firecrawl](https://firecrawl.dev), writes authentic broadcast scripts with [OpenAI GPT-4o](https://openai.com), and generates period-accurate audio with [ElevenLabs](https://elevenlabs.io) — complete with era-appropriate intro/outro music, multi-voice anchoring, and a live "Ask the Anchor" call-in feature where the anchor searches and fact-checks live using Firecrawl webhook tools.
 
 ## Features
 
@@ -31,30 +31,57 @@ RetroCast fetches current news via [Firecrawl](https://firecrawl.dev), writes au
 - **On-demand generation** — Click play, and today's news is fetched, scripted, and narrated in real time
 - **Dual-anchor broadcasts** — TV formats use two AI anchors trading stories via ElevenLabs Text-to-Dialogue
 - **Fact verification** — Firecrawl cross-checks headlines before they air, flagging disputed claims
-- **"Ask the Anchor"** — Live voice conversations with the AI news anchor, who can search news and fact-check in real time using ElevenLabs Conversational AI
+- **"Ask the Anchor"** — Live voice conversations with the AI news anchor, who can search news and fact-check in real time using ElevenLabs Conversational AI + Firecrawl webhook tools
 - **Multilingual** — Hindi, English, and Portuguese broadcasts with native-speaker voices
 - **Date navigation** — Browse and replay past broadcasts
 
-## Quick Start
+## How Firecrawl Powers RetroCast
 
-```bash
-git clone https://github.com/pvernekar/retrocast.git
-cd retrocast
-pip install -r requirements.txt
-cp .env.example .env         # Add your API keys
-python setup.py              # Validates keys, creates ElevenLabs agent
-python server.py             # http://localhost:5000
-```
+Firecrawl is used at every stage — from content sourcing to live interaction.
 
-> **Requires [ffmpeg](https://ffmpeg.org/)** for audio assembly — `brew install ffmpeg` on macOS, `apt install ffmpeg` on Linux.
+### During Broadcast Generation
 
-You'll need API keys from three services (all have free tiers):
+| Step | Firecrawl API | What it does |
+|------|--------------|--------------|
+| **News discovery** | `search` | Searches current news across 6 categories (politics, economy, science, sports, geopolitics, society), geo-filtered by country and region |
+| **Fact verification** | `search` | Cross-checks the top stories against fact-checking sources; disputed claims are flagged so the anchor can address them on-air |
 
-| Service | What it does | Get a key |
-|---------|-------------|-----------|
-| [Firecrawl](https://firecrawl.dev) | Searches and extracts news articles | [firecrawl.dev](https://firecrawl.dev) |
-| [OpenAI](https://openai.com) | Writes broadcast scripts (GPT-4o) | [platform.openai.com](https://platform.openai.com/api-keys) |
-| [ElevenLabs](https://elevenlabs.io) | Text-to-speech and live voice agent | [elevenlabs.io](https://elevenlabs.io/app/settings/api-keys) |
+Every broadcast starts with **two Firecrawl calls** — one to find the news, one to verify it. This means Firecrawl shapes what the anchor says and how they say it (flagged claims get hedging language like "reports suggest" instead of stating them as fact).
+
+### During Live "Ask the Anchor" Conversations
+
+The ElevenLabs Conversational AI agent is configured with **4 Firecrawl-powered webhook tools** that the anchor calls in real time during voice conversations:
+
+| Webhook Tool | Firecrawl API | When the anchor calls it |
+|-------------|--------------|------------------------|
+| `search_news` | `search` (news sources) | User asks "What happened with…?" — anchor searches today's headlines by topic and region |
+| `fact_check` | `search` (fact-check sources) | User asks "Is it true that…?" — anchor cross-checks the claim against fact-checking sources |
+| `read_article` | `scrape_url` | User asks about a specific article — anchor scrapes and reads the full text to quote the original source |
+| `search_topic` | `search` (general web) | User goes off-script — anchor runs a general web search on any topic |
+
+These are server-side webhook endpoints (`/api/agent/tools`) that ElevenLabs calls during the conversation. The anchor decides which tool to use based on the user's question, calls the webhook, and weaves the Firecrawl results into its spoken response — all in real time.
+
+## How ElevenLabs Powers RetroCast
+
+ElevenLabs is used for all audio generation and the live voice agent.
+
+### Voice Generation
+
+| Feature | ElevenLabs API | How it's used |
+|---------|---------------|---------------|
+| **Dual-anchor TV broadcasts** | Text-to-Dialogue | TV formats (Doordarshan, BBC, CBS/NBC, Jornal Nacional) use two distinct AI voices trading stories back and forth — a single script is split into a natural dialogue |
+| **Solo radio broadcasts** | Text-to-Speech | Radio formats (Akashvani, BBC World Service, NPR, Repórter Esso) use a single narrator voice with era-appropriate pacing |
+| **16 unique voices** | Voice Library | Each of the 8 styles has its own voice (or voice pair), matched to geographic origin and era — a 1970s American anchor sounds nothing like a 1980s Hindi newsreader |
+| **Multilingual output** | Multilingual TTS | Hindi, English, and Portuguese broadcasts use native-speaker voices, not translated English |
+
+### Live Conversational AI ("Ask the Anchor")
+
+| Feature | ElevenLabs API | How it's used |
+|---------|---------------|---------------|
+| **Voice agent** | Conversational AI | Each broadcast style has a unique agent persona — the anchor stays in character during the entire conversation |
+| **Signed URLs** | Conversation Sessions | Server provisions short-lived signed URLs so the browser connects directly to ElevenLabs without exposing API keys |
+| **Webhook tools** | Tool Use | 4 Firecrawl-powered tools are registered as webhooks — ElevenLabs calls them server-side when the anchor needs to search or fact-check |
+| **Dynamic overrides** | Agent Overrides | The agent's persona, language, and first message are overridden per-style at session start — one agent definition serves all 8 styles |
 
 ## Broadcast Styles
 
@@ -71,7 +98,7 @@ You'll need API keys from three services (all have free tiers):
 
 Each style has its own ElevenLabs voice (or voice pair for dual-anchor formats), scripting conventions faithful to the era, and period-appropriate intro/outro music.
 
-## How It Works
+## Pipeline
 
 ```
   Firecrawl             Firecrawl             OpenAI              ElevenLabs
@@ -124,24 +151,26 @@ Each style has its own ElevenLabs voice (or voice pair for dual-anchor formats),
 
 Concurrency is handled with per-style generation locks (only one generation per style at a time) and a thread-safe manifest for tracking completed broadcasts.
 
-## "Ask the Anchor"
+## Quick Start
 
-After listening to a broadcast, click **"Ask the Anchor"** to start a live voice conversation with the AI news anchor. The anchor stays in character — a 1970s American news anchor will respond differently than a 1960s Brazilian radio host.
+```bash
+git clone https://github.com/ppv999/retrocast.git
+cd retrocast
+pip install -r requirements.txt
+cp .env.example .env         # Add your API keys
+python setup.py              # Validates keys, creates ElevenLabs agent
+python server.py             # http://localhost:5000
+```
 
-During the conversation, the anchor can:
-- **Search for breaking news** via Firecrawl in real time
-- **Fact-check claims** you ask about
-- **Read full articles** to give deeper context
-- **Research any topic** you bring up
+> **Requires [ffmpeg](https://ffmpeg.org/)** for audio assembly — `brew install ffmpeg` on macOS, `apt install ffmpeg` on Linux.
 
-This is powered by [ElevenLabs Conversational AI](https://elevenlabs.io/conversational-ai) with webhook tools that call back to the server's Firecrawl integration.
+You'll need API keys from three services (all have free tiers):
 
-To enable the live tools (search, fact-check):
-
-1. Set `AGENT_BASE_URL` in `.env` to your public URL (e.g., `https://your-app.replit.app`)
-2. Re-run `python setup.py` to configure the webhook tools
-
-Without `AGENT_BASE_URL`, the anchor can still converse but won't have access to live search.
+| Service | What it does | Get a key |
+|---------|-------------|-----------|
+| [Firecrawl](https://firecrawl.dev) | Searches and extracts news articles | [firecrawl.dev](https://firecrawl.dev) |
+| [OpenAI](https://openai.com) | Writes broadcast scripts (GPT-4o) | [platform.openai.com](https://platform.openai.com/api-keys) |
+| [ElevenLabs](https://elevenlabs.io) | Text-to-speech and live voice agent | [elevenlabs.io](https://elevenlabs.io/app/settings/api-keys) |
 
 ## Environment Variables
 
@@ -183,12 +212,6 @@ retrocast/
 └── replit.nix           # Replit system dependencies (Python 3.11, ffmpeg)
 ```
 
-## Validation
-
-```bash
-python setup.py --check    # Validate all API keys and agent config (exit 0 = OK)
-```
-
 ## Contributing
 
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
@@ -201,14 +224,6 @@ The most impactful contributions:
 ## Security
 
 If you discover a security vulnerability, please report it responsibly. See [SECURITY.md](SECURITY.md) for details.
-
-## Acknowledgments
-
-RetroCast is built on three remarkable APIs:
-
-- **[Firecrawl](https://firecrawl.dev)** — Powers news discovery, article extraction, and live fact-checking
-- **[ElevenLabs](https://elevenlabs.io)** — Powers voice generation (TTS, Text-to-Dialogue) and the live "Ask the Anchor" Conversational AI
-- **[OpenAI](https://openai.com)** — Powers broadcast script writing via GPT-4o
 
 ## License
 
