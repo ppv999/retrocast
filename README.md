@@ -50,7 +50,7 @@ Every broadcast starts with **two Firecrawl calls** — one to find the news, on
 
 ### During Live "Ask the Anchor" Conversations
 
-The ElevenLabs Conversational AI agent is configured with **4 Firecrawl-powered webhook tools** that the anchor calls in real time during voice conversations:
+The ElevenAgents conversational AI agent is configured with **4 Firecrawl-powered webhook tools** that the anchor calls in real time during voice conversations:
 
 | Webhook Tool | Firecrawl API | When the anchor calls it |
 |-------------|--------------|------------------------|
