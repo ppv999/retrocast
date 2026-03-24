@@ -27,6 +27,9 @@ test-ring.html
 voices.json
 _tool_ids.json
 
+# Submission materials (personal drafts, not part of the app)
+submission/
+
 # Replit auto-generated files
 .replit_integration_files/
 attached_assets/

@@ -252,16 +252,31 @@ _agents_cache = {}
 
 
 def _get_base_url() -> str:
-    """Determine the public base URL for webhook callbacks."""
+    """Determine the public base URL for webhook callbacks.
+
+    Priority:
+    1. AGENT_BASE_URL env var (explicit override — most reliable)
+    2. REPLIT_DOMAINS — pick the shortest/cleanest domain (custom domain
+       like 'retrocast.replit.app' is shorter than the dev UUID domain)
+    3. Fallback to localhost
+    """
     # Explicit override first
     base = os.environ.get("AGENT_BASE_URL", "")
     if base:
+        print(f"  [base_url] Using AGENT_BASE_URL: {base}")
         return base.rstrip("/")
     # Auto-detect from Replit environment
-    domain = os.environ.get("REPLIT_DOMAINS", "")
-    if domain:
-        # REPLIT_DOMAINS can be comma-separated; use the first one
-        return f"https://{domain.split(',')[0].strip()}"
+    domains_str = os.environ.get("REPLIT_DOMAINS", "")
+    if domains_str:
+        domains = [d.strip() for d in domains_str.split(",") if d.strip()]
+        print(f"  [base_url] REPLIT_DOMAINS: {domains}")
+        # Prefer the custom/deployment domain (shorter, e.g. 'retrocast.replit.app')
+        # over the dev UUID domain (e.g. '55173b1f-...-pike.replit.dev')
+        if len(domains) > 1:
+            domains.sort(key=len)
+            print(f"  [base_url] Picked shortest domain: {domains[0]}")
+        return f"https://{domains[0]}"
+    print("  [base_url] No REPLIT_DOMAINS found, falling back to localhost")
     return "http://localhost:5000"
 
 
@@ -465,19 +480,21 @@ def ensure_agents() -> dict:
 
     # Ensure existing agents have tools attached
     base_url = _get_base_url()
+    print(f"  [ensure] base_url = {base_url!r}")
+    print(f"  [ensure] Found {len(found)} agents: {list(found.keys())}")
     for style_key, agent_id in found.items():
         try:
             agent_detail = client.conversational_ai.agents.get(agent_id=agent_id)
             prompt_cfg = agent_detail.conversation_config.agent.prompt
             tool_ids = prompt_cfg.tool_ids if prompt_cfg else None
+            from elevenlabs.types import (
+                AgentConfig,
+                ConversationalConfig,
+                PromptAgentApiModelOutput,
+            )
             if not tool_ids:
                 print(f"  [ensure] Agent {style_key} ({agent_id}) has no tools — adding...")
                 new_tool_ids = _create_tools(client, base_url)
-                from elevenlabs.types import (
-                    AgentConfig,
-                    ConversationalConfig,
-                    PromptAgentApiModelOutput,
-                )
                 client.conversational_ai.agents.update(
                     agent_id=agent_id,
                     conversation_config=ConversationalConfig(
@@ -492,7 +509,48 @@ def ensure_agents() -> dict:
                 )
                 print(f"  [ensure] Added {len(new_tool_ids)} tools to {style_key}")
             else:
-                print(f"  [ensure] Agent {style_key} — {len(tool_ids)} tools OK")
+                # Verify tool URLs match current base_url
+                try:
+                    first_tool = client.conversational_ai.tools.get(tool_id=tool_ids[0])
+                    tool_url = ""
+                    if hasattr(first_tool, 'tool_config') and hasattr(first_tool.tool_config, 'api_schema'):
+                        tool_url = getattr(first_tool.tool_config.api_schema, 'url', "") or ""
+                    expected_prefix = f"{base_url}/api/agent/tools/"
+                    print(f"  [ensure] Agent {style_key} — checking tool URLs...")
+                    print(f"           Tool[0] ID: {tool_ids[0]}")
+                    print(f"           Tool[0] URL: {tool_url!r}")
+                    print(f"           Expected prefix: {expected_prefix!r}")
+                    if expected_prefix not in tool_url:
+                        print(f"  [ensure] Agent {style_key} — URL MISMATCH, recreating tools...")
+                        # Delete old tools
+                        for tid in tool_ids:
+                            try:
+                                client.conversational_ai.tools.delete(tool_id=tid)
+                                print(f"           Deleted old tool {tid}")
+                            except Exception as del_e:
+                                print(f"           Failed to delete tool {tid}: {del_e}")
+                        # Create new tools with correct URL
+                        new_tool_ids = _create_tools(client, base_url)
+                        client.conversational_ai.agents.update(
+                            agent_id=agent_id,
+                            conversation_config=ConversationalConfig(
+                                agent=AgentConfig(
+                                    prompt=PromptAgentApiModelOutput(
+                                        prompt=prompt_cfg.prompt if prompt_cfg else "",
+                                        llm=prompt_cfg.llm if prompt_cfg else "gpt-4o",
+                                        tool_ids=new_tool_ids,
+                                    ),
+                                ),
+                            ),
+                        )
+                        print(f"  [ensure] Recreated {len(new_tool_ids)} tools for {style_key}")
+                    else:
+                        print(f"  [ensure] Agent {style_key} — {len(tool_ids)} tools OK (URLs match)")
+                except Exception as e:
+                    print(f"  [ensure] Could not verify tool URLs for {style_key}: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    print(f"  [ensure] Agent {style_key} — {len(tool_ids)} tools (UNVERIFIED)")
             # Ensure overrides are enabled (idempotent — re-enabling is a no-op)
             _enable_agent_overrides(client, agent_id)
         except Exception as e:
