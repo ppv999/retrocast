@@ -793,68 +793,54 @@
       border-color: #e25555;
     }
 
-    /* --- Ask the Anchor callout --- */
-    .ask-anchor-callout {
-      margin-top: 32px;
-      padding: 28px 32px;
-      border-radius: 16px;
-      background: rgba(212, 164, 76, 0.04);
-      border: 1px solid rgba(212, 164, 76, 0.25);
-      box-shadow: 0 0 40px rgba(212, 164, 76, 0.06);
-      backdrop-filter: blur(10px);
-      display: flex;
-      align-items: flex-start;
-      gap: 16px;
+    /* --- Dial-in flow inside connection island --- */
+    .island-dialin-info {
+      margin-top: 2px;
     }
 
-    .ask-anchor-callout-icon {
-      flex-shrink: 0;
-      width: 54px;
-      height: 84px;
-      border-radius: 14px;
-      background: linear-gradient(180deg, rgba(255, 107, 0, 0.08) 0%, rgba(212, 164, 76, 0.06) 100%);
-      border: 1px solid rgba(212, 164, 76, 0.12);
+    .island-flow {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 0;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
     }
 
-    .callout-logo-firecrawl { width: 26px; height: 26px; padding: 6px 0 4px; }
-    .callout-logo-divider { width: 24px; height: 1px; background: rgba(212, 164, 76, 0.2); }
-    .callout-logo-elevenlabs { width: 20px; height: 20px; padding: 4px 0 6px; }
-
-    .ask-anchor-callout-text h4 {
-      font-family: 'Instrument Serif', serif;
-      font-size: 1.1rem;
-      color: #ffffff;
-      margin-bottom: 6px;
+    .island-flow-node {
+      font-size: 0.62rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.75);
+      white-space: nowrap;
     }
 
-    .ask-anchor-callout-text p {
-      font-size: 0.82rem;
-      color: #a0a0b8;
-      line-height: 1.6;
+    .island-flow-node.branded {
+      background: rgba(212, 164, 76, 0.12);
+      color: rgba(212, 164, 76, 0.9);
+      border: 1px solid rgba(212, 164, 76, 0.15);
     }
 
-    .callout-features {
+    .island-flow-arrow {
+      font-size: 0.65rem;
+      color: rgba(212, 164, 76, 0.5);
+    }
+
+    .island-flow-tools {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 12px;
+      gap: 4px;
     }
 
-    .callout-feature {
-      font-size: 0.6rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 2px 7px;
-      border-radius: 4px;
-      background: rgba(212, 164, 76, 0.1);
-      color: rgba(212, 164, 76, 0.8);
-      border: 1px solid rgba(212, 164, 76, 0.12);
+    .island-flow-tool {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.55rem;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: rgba(255, 107, 0, 0.08);
+      color: rgba(255, 107, 0, 0.7);
+      border: 1px solid rgba(255, 107, 0, 0.1);
     }
 
     /* --- Responsive --- */
@@ -895,25 +881,8 @@
 
       .conversation-live { padding: 14px 16px; }
 
-      .ask-anchor-callout {
-        flex-direction: column;
-        text-align: center;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .ask-anchor-callout-icon {
-        width: 64px;
-        height: 48px;
-        flex-direction: row;
-        border-radius: 12px;
-      }
-
-      .callout-logo-firecrawl { padding: 0 4px 0 6px; }
-      .callout-logo-divider { width: 1px; height: 24px; }
-      .callout-logo-elevenlabs { padding: 0 6px 0 4px; }
-
-      .callout-features { justify-content: center; }
+      .island-flow { justify-content: center; }
+      .island-flow-tools { justify-content: center; }
     }
 
     /* --- Dynamic Island Status Notifications --- */
@@ -1279,33 +1248,8 @@
       </div>
       </div>
 
-      <!-- Ask the Anchor callout -->
-      <div class="ask-anchor-callout fade-rise" style="--delay: 0.1s">
-        <div class="ask-anchor-callout-icon">
-          <!-- Firecrawl flame -->
-          <svg class="callout-logo-firecrawl" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M16 3C12.5 8 10 12 10 16c0 3.3 2.7 6 6 6s6-2.7 6-6c0-2-.8-3.8-2-5.2-.2-.2-.5-.1-.5.2 0 2-1.3 3.6-3 4.2-.3.1-.5-.1-.5-.4.5-3-1-6.5-3-9.5-.2-.3-.6-.1-.6.2C12 7 13 10 13.5 12c.1.3-.2.5-.4.3C10.5 10.5 9 7.5 9.5 4c0-.3-.3-.5-.6-.3C6.5 5.8 5 9.5 5 13c0 6.1 4.9 11 11 11s11-4.9 11-11c0-4-2-7.5-5-10-.2-.2-.5-.1-.5.2 0 1.5-.5 3-1.5 4-.2.2-.5.1-.6-.2C18.5 5.5 17 4 16 3z" fill="#FF6B00"/>
-          </svg>
-          <div class="callout-logo-divider"></div>
-          <!-- ElevenLabs bars -->
-          <svg class="callout-logo-elevenlabs" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="4" y="3" width="3" height="18" rx="1.5" fill="#ffffff" opacity="0.85"/>
-            <rect x="10.5" y="3" width="3" height="18" rx="1.5" fill="#ffffff" opacity="0.85"/>
-            <rect x="17" y="7" width="3" height="10" rx="1.5" fill="#ffffff" opacity="0.5"/>
-          </svg>
-        </div>
-        <div class="ask-anchor-callout-text">
-          <h4>Dial In</h4>
-          <p>Call the anchor after the broadcast. They answer in character, in their native language, with live access to the web. Ask them to fact-check a claim, research a topic, or read you the original source &mdash; they'll search it in real time while keeping you company on air.</p>
-          <div class="callout-features">
-            <span class="callout-feature">ElevenLabs Agents</span>
-            <span class="callout-feature">4 Firecrawl tools</span>
-            <span class="callout-feature">8 personas</span>
-            <span class="callout-feature">3 languages</span>
-            <span class="callout-feature">Tool-invisible UX</span>
-          </div>
-        </div>
-      </div>
+
+
     </div>
   </div>
 
@@ -1624,33 +1568,49 @@
     }
 
     function showGenerationIsland() {
-      showIsland('Preparing your broadcast', 'You\u2019re the first to tune in today \u2014 brewing fresh', [
-        { icon: '\uD83D\uDD25', label: 'Searching news', short: 'News' },
-        { icon: '\uD83D\uDEE1\uFE0F', label: 'Fact-checking', short: 'Verify' },
-        { icon: '\u2728', label: 'Writing script', short: 'Script' },
-        { icon: '\uD83C\uDFA7', label: 'Generating audio', short: 'Audio' },
-      ]);
+      islandTitle.textContent = 'Brewing a fresh broadcast';
+      islandSubtitle.textContent = 'You\u2019re the first to tune in today';
+      islandPipeline.innerHTML = '';
+      islandProgress.style.width = '0%';
+      statusIsland.classList.add('visible');
     }
 
     function updateGenerationStep(stepText) {
       if (!stepText) return;
-      if (stepText.includes('Fetching')) setIslandStep(0);
-      else if (stepText.includes('Verifying')) setIslandStep(1);
-      else if (stepText.includes('Writing')) setIslandStep(2);
-      else if (stepText.includes('Generating audio')) setIslandStep(3);
+      if (stepText.includes('Fetching')) updateIslandProgress(0.1);
+      else if (stepText.includes('Verifying')) updateIslandProgress(0.35);
+      else if (stepText.includes('Writing')) updateIslandProgress(0.6);
+      else if (stepText.includes('Generating audio')) updateIslandProgress(0.85);
     }
 
     function showConnectionIsland() {
       let elapsed = 0;
-      showIsland('Connecting to the anchor', '0s / ~10s', [
-        { icon: '\uD83C\uDF99\uFE0F', label: 'Microphone', short: 'Mic' },
-        { icon: '\uD83D\uDDA5\uFE0F', label: 'Session', short: 'Server' },
-        { icon: '\uD83C\uDFA7', label: 'Voice link', short: 'Voice' },
-      ]);
-      setIslandStep(0);
+      islandTitle.textContent = 'Dialling the anchor';
+      islandSubtitle.textContent = '';
+      islandPipeline.innerHTML =
+        '<div class="island-dialin-info">' +
+          '<div class="island-flow">' +
+            '<span class="island-flow-node">You speak</span>' +
+            '<span class="island-flow-arrow">\u2192</span>' +
+            '<span class="island-flow-node branded">ElevenLabs Agent</span>' +
+            '<span class="island-flow-arrow">\u2192</span>' +
+            '<span class="island-flow-node branded">Firecrawl</span>' +
+            '<span class="island-flow-arrow">\u2192</span>' +
+            '<span class="island-flow-node">Anchor responds</span>' +
+          '</div>' +
+          '<div class="island-flow-tools">' +
+            '<span class="island-flow-tool">search_news</span>' +
+            '<span class="island-flow-tool">fact_check</span>' +
+            '<span class="island-flow-tool">read_article</span>' +
+            '<span class="island-flow-tool">search_topic</span>' +
+          '</div>' +
+        '</div>';
+      islandProgress.style.width = '0%';
+      statusIsland.classList.add('visible');
+      updateIslandProgress(0.15);
       islandTimerId = setInterval(() => {
         elapsed++;
-        islandSubtitle.textContent = elapsed + 's / ~10s';
+        islandSubtitle.textContent = elapsed + 's';
       }, 1000);
     }
 
@@ -2002,7 +1962,7 @@
       try {
         // Request microphone access first
         await navigator.mediaDevices.getUserMedia({ audio: true });
-        setIslandStep(1);
+        updateIslandProgress(0.4);
 
         // Get signed URL and per-style overrides from server
         const res = await fetch('/api/agent/start', {
@@ -2021,7 +1981,7 @@
         }
 
         const data = await res.json();
-        setIslandStep(2);
+        updateIslandProgress(0.7);
         console.log('Agent start response:', data);
 
         // Normalize snake_case override keys to camelCase for the JS SDK
@@ -2046,7 +2006,6 @@
             console.log('Conversation connected');
             ringingSfx.stop();
             setConvStatus('Listening...', false);
-            setIslandStep(3);
             updateIslandProgress(1);
             setTimeout(hideIsland, 1500);
           },
